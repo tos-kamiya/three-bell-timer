@@ -1,15 +1,35 @@
 import argparse
 import colorsys
+import os
 import sys
 import time
 from typing import List, Tuple
 
 from PyQt5 import QtWidgets, QtCore, QtGui
+from PyQt5.QtGui import QIcon
 
 try:
     from .__about__ import __version__
 except ImportError as e:
     __version__ = "(unknown)"
+
+
+def find_icon_file(filename):
+    base_dirs = []
+    pkg_data_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), 'data'))
+    base_dirs.append(pkg_data_dir)
+    try:
+        pyinstaller_data_dir = sys._MEIPASS
+        base_dirs.append(pyinstaller_data_dir)
+    except Exception:
+        pass
+    base_dirs.append(os.path.abspath("."))
+
+    for b in base_dirs:
+        icon_path = os.path.join(b, filename)
+        if os.path.exists(icon_path):
+            return icon_path
+    return None
 
 
 def modify_v(rgb: Tuple[int, int, int], v_add: float) -> Tuple[int, int, int]:
@@ -312,6 +332,10 @@ def main() -> None:
         time1, time2, time3 = 10, 15, 20
 
     app = QtWidgets.QApplication(sys.argv)
+    icon_path = find_icon_file("icon.ico")
+    if icon_path is not None:
+        app.setWindowIcon(QIcon(icon_path))
+
     mainWindow = PresentationTimerWindow(time1, time2, time3, args.display, args.pos, args.pixel_height)
     mainWindow.show()
     sys.exit(app.exec_())

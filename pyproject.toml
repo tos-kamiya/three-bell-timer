@@ -28,6 +28,12 @@ dependencies = [
 [tool.hatch.version]
 path = "src/presen_time_bar/__about__.py"
 
+[tool.hatch.build.targets.sdist]
+include = [
+  "data/*.png",
+  "data/*.ico",
+]
+
 [project.scripts]
 presen-time-bar = "presen_time_bar:main"
 
