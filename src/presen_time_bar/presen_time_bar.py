@@ -191,6 +191,17 @@ class TimerBar(QtWidgets.QWidget):
                 painter.drawText(rect_marker, QtCore.Qt.AlignCenter, str(mark))
 
 
+def add_menu_items(menu: QtWidgets.QMenu):
+    resume_action = menu.addAction("Resume / Pause")
+    menu.addSeparator()
+    move_top_action = menu.addAction("Move to Top")
+    move_bottom_action = menu.addAction("Move to Bottom")
+    move_next_disp_action = menu.addAction("Move to Next Display")
+    menu.addSeparator()
+    exit_action = menu.addAction("Exit")
+    return resume_action, move_top_action, move_bottom_action, move_next_disp_action, exit_action
+
+
 class PresentationTimerWindow(QtWidgets.QMainWindow):
     """
     A transparent window that displays the timer bar (a series of marbles across the full width).
@@ -224,7 +235,7 @@ class PresentationTimerWindow(QtWidgets.QMainWindow):
 
     def setup_window(self) -> None:
         self.setWindowTitle("Presentation Timer")
-        self.setWindowFlags(QtCore.Qt.FramelessWindowHint | QtCore.Qt.WindowStaysOnTopHint)
+        self.setWindowFlags(QtCore.Qt.Tool | QtCore.Qt.FramelessWindowHint | QtCore.Qt.WindowStaysOnTopHint)
         self.setAttribute(QtCore.Qt.WA_TranslucentBackground)
         # Set the timer bar widget as the central widget
         self.timerBar: TimerBar = TimerBar(self.time1, self.time2, self.time3, self.running_bar_display_height)
@@ -270,17 +281,10 @@ class PresentationTimerWindow(QtWidgets.QMainWindow):
         if event.button() in (QtCore.Qt.LeftButton, QtCore.Qt.RightButton):
             pos = event.globalPos()
             menu: QtWidgets.QMenu = QtWidgets.QMenu(self)
-            toggle_text: str = "Resume" if self.timerBar._is_paused else "Pause"
-            toggle_action = menu.addAction(toggle_text)
-            menu.addSeparator()
-            move_top_action = menu.addAction("Move to Top")
-            move_bottom_action = menu.addAction("Move to Bottom")
-            move_next_disp_action = menu.addAction("Move to Next Display")
-            menu.addSeparator()
-            exit_action = menu.addAction("Exit")
 
+            resume_action, move_top_action, move_bottom_action, move_next_disp_action, exit_action = add_menu_items(menu)
             action = menu.exec_(pos)
-            if action == toggle_action:
+            if action == resume_action:
                 self.timerBar.toggle_pause()
                 self.adjustPosition()
             elif action == move_top_action:
@@ -331,6 +335,7 @@ def main() -> None:
     else:
         time1, time2, time3 = 10, 15, 20
 
+    # Set up application object and main window
     app = QtWidgets.QApplication(sys.argv)
     icon_path = find_icon_file("icon.ico")
     if icon_path is not None:
@@ -338,6 +343,34 @@ def main() -> None:
 
     mainWindow = PresentationTimerWindow(time1, time2, time3, args.display, args.pos, args.pixel_height)
     mainWindow.show()
+
+    # Create the system tray icon using the main window as the parent
+    tray_icon: QtWidgets.QSystemTrayIcon = QtWidgets.QSystemTrayIcon(mainWindow)
+    icon_path = find_icon_file("icon.ico")
+    if icon_path is not None:
+        tray_icon.setIcon(QtGui.QIcon(icon_path))
+    else:
+        tray_icon.setIcon(mainWindow.windowIcon())
+
+    # Set up the tray menu with the desired actions
+    tray_menu: QtWidgets.QMenu = QtWidgets.QMenu()
+    resume_action, move_top_action, move_bottom_action, move_next_disp_action, exit_action = add_menu_items(tray_menu)
+    tray_icon.setContextMenu(tray_menu)
+
+    # Connect the actions to corresponding handlers.
+    resume_action.triggered.connect(lambda: (mainWindow.timerBar.toggle_pause(), mainWindow.adjustPosition()))
+    move_top_action.triggered.connect(lambda: (setattr(mainWindow, 'position', 'top'), mainWindow.adjustPosition()))
+    move_bottom_action.triggered.connect(lambda: (setattr(mainWindow, 'position', 'bottom'), mainWindow.adjustPosition()))
+    move_next_disp_action.triggered.connect(lambda: (
+        setattr(mainWindow, 'display_index', (mainWindow.display_index + 1) % len(QtWidgets.QApplication.screens())),
+        mainWindow.adjustPosition()
+    ))
+    exit_action.triggered.connect(QtWidgets.QApplication.quit)
+
+    # Show the system tray icon
+    tray_icon.show()
+
+    # Start event loop
     sys.exit(app.exec_())
 
 
