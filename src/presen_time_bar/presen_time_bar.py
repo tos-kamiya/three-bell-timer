@@ -107,7 +107,9 @@ class TimerBar(QtWidgets.QWidget):
         total_height: float = self.height() if self._is_paused else self.running_bar_display_height
         gap: float = 2  # Margin inside each marble
         marble_width: float = total_width / self.total_minutes
-        radius: float = (total_height - 2 * gap) / 2 if total_height > 2 * gap else 0
+        radius: float = (total_height - 2 * gap) / 3
+        if radius < 0.5:
+            radius = 0.0
 
         # Calculate elapsed seconds
         elapsed: float
