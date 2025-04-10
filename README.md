@@ -26,6 +26,10 @@ When the timer starts, it is paused:
 Clicking on the “▶” icon resumes (or starts) the timer.  
 The right-click menu allows you to change the timer's position on the screen or move it to another display.
 
+**System Tray Icon:**  
+
+The application does not show an icon on the taskbar, but provides a system tray icon with the same context menu, making it convenient to access settings and controls.
+
 ## Installation
 
 Install **presen-time-bar** using pipx:
