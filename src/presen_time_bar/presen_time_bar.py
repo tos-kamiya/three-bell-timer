@@ -16,7 +16,7 @@ except ImportError as e:
 
 def find_icon_file(filename):
     base_dirs = []
-    pkg_data_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), 'data'))
+    pkg_data_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "data"))
     base_dirs.append(pkg_data_dir)
     try:
         pyinstaller_data_dir = sys._MEIPASS
@@ -54,36 +54,37 @@ def modify_v(rgb: Tuple[int, int, int], v_add: float) -> Tuple[int, int, int]:
 
 class TimeSettingsDialog(QtWidgets.QDialog):
     """Dialog for changing bell times (in minutes)."""
+
     def __init__(self, parent: QtWidgets.QWidget = None, time1: int = 10, time2: int = 15, time3: int = 20) -> None:
         super().__init__(parent)
         self.setWindowTitle("Change Bell Times")
         layout: QtWidgets.QFormLayout = QtWidgets.QFormLayout(self)
-        
+
         self.spin1: QtWidgets.QSpinBox = QtWidgets.QSpinBox(self)
         self.spin1.setMinimum(1)
         self.spin1.setMaximum(999)
         self.spin1.setValue(time1)
-        
+
         self.spin2: QtWidgets.QSpinBox = QtWidgets.QSpinBox(self)
         self.spin2.setMinimum(1)
         self.spin2.setMaximum(999)
         self.spin2.setValue(time2)
-        
+
         self.spin3: QtWidgets.QSpinBox = QtWidgets.QSpinBox(self)
         self.spin3.setMinimum(1)
         self.spin3.setMaximum(999)
         self.spin3.setValue(time3)
-        
+
         layout.addRow("Bell 1 (minutes):", self.spin1)
         layout.addRow("Bell 2 (minutes):", self.spin2)
         layout.addRow("Bell 3 (minutes):", self.spin3)
-        
+
         button_box: QtWidgets.QDialogButtonBox = QtWidgets.QDialogButtonBox(self)
         button_box.setStandardButtons(QtWidgets.QDialogButtonBox.Cancel | QtWidgets.QDialogButtonBox.Ok)
         # Change the Ok button text to "Initialize"
         button_box.button(QtWidgets.QDialogButtonBox.Ok).setText("Initialize")
         layout.addWidget(button_box)
-        
+
         button_box.accepted.connect(self.accept)
         button_box.rejected.connect(self.reject)
 
@@ -210,7 +211,9 @@ class TimerBar(QtWidgets.QWidget):
                 painter.setPen(QtCore.Qt.NoPen)
                 for j in range(n):
                     x_i: float = hand_x + j * (marker_size + spacing)
-                    line_rect: QtCore.QRectF = QtCore.QRectF(x_i, (total_height - marker_size) / 2, marker_size, marker_size)
+                    line_rect: QtCore.QRectF = QtCore.QRectF(
+                        x_i, (total_height - marker_size) / 2, marker_size, marker_size
+                    )
                     painter.drawRoundedRect(line_rect, radius, radius)
 
             # When paused, draw a border around each marble with opaque color
@@ -334,7 +337,14 @@ class PresentationTimerWindow(QtWidgets.QMainWindow):
             pos = event.globalPos()
             menu: QtWidgets.QMenu = QtWidgets.QMenu(self)
 
-            resume_action, move_top_action, move_bottom_action, move_next_disp_action, change_times_action, exit_action = add_menu_items(menu)
+            (
+                resume_action,
+                move_top_action,
+                move_bottom_action,
+                move_next_disp_action,
+                change_times_action,
+                exit_action,
+            ) = add_menu_items(menu)
             action = menu.exec_(pos)
             if action == resume_action:
                 self.timerBar.toggle_pause()
@@ -429,17 +439,25 @@ def main() -> None:
 
     # Set up the tray menu with the desired actions
     tray_menu: QtWidgets.QMenu = QtWidgets.QMenu()
-    resume_action, move_top_action, move_bottom_action, move_next_disp_action, change_times_action, exit_action = add_menu_items(tray_menu)
+    resume_action, move_top_action, move_bottom_action, move_next_disp_action, change_times_action, exit_action = (
+        add_menu_items(tray_menu)
+    )
     tray_icon.setContextMenu(tray_menu)
 
     # Connect the actions to corresponding handlers.
     resume_action.triggered.connect(lambda: (mainWindow.timerBar.toggle_pause(), mainWindow.adjustPosition()))
-    move_top_action.triggered.connect(lambda: (setattr(mainWindow, 'position', 'top'), mainWindow.adjustPosition()))
-    move_bottom_action.triggered.connect(lambda: (setattr(mainWindow, 'position', 'bottom'), mainWindow.adjustPosition()))
-    move_next_disp_action.triggered.connect(lambda: (
-        setattr(mainWindow, 'display_index', (mainWindow.display_index + 1) % len(QtWidgets.QApplication.screens())),
-        mainWindow.adjustPosition()
-    ))
+    move_top_action.triggered.connect(lambda: (setattr(mainWindow, "position", "top"), mainWindow.adjustPosition()))
+    move_bottom_action.triggered.connect(
+        lambda: (setattr(mainWindow, "position", "bottom"), mainWindow.adjustPosition())
+    )
+    move_next_disp_action.triggered.connect(
+        lambda: (
+            setattr(
+                mainWindow, "display_index", (mainWindow.display_index + 1) % len(QtWidgets.QApplication.screens())
+            ),
+            mainWindow.adjustPosition(),
+        )
+    )
     change_times_action.triggered.connect(lambda: (mainWindow.update_time_settings(), mainWindow.adjustPosition()))
     exit_action.triggered.connect(QtWidgets.QApplication.quit)
 
