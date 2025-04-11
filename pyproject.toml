@@ -3,9 +3,9 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [project]
-name = "presen-time-bar"
+name = "three-bell-timer"
 dynamic = ["version"]
-description = ''
+description = 'A lightweight timer designed for presentations.'
 readme = "README.md"
 requires-python = ">=3.10"
 license = "MIT"
@@ -26,7 +26,7 @@ dependencies = [
 ]
 
 [tool.hatch.version]
-path = "src/presen_time_bar/__about__.py"
+path = "src/three_bell_timer/__about__.py"
 
 [tool.hatch.build.targets.sdist]
 include = [
@@ -35,5 +35,5 @@ include = [
 ]
 
 [project.scripts]
-presen-time-bar = "presen_time_bar:main"
+3bt = "three_bell_timer:main"
 

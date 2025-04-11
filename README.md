@@ -1,6 +1,6 @@
-# presen-time-bar
+# three-bell-timer
 
-A lightweight, transparent PyQt5-based timer designed for presentations. It displays a horizontal progress bar that overlays your desktop.
+A lightweight timer designed for presentations. It displays a horizontal progress bar that overlays your desktop.
 
 ## Features
 
@@ -32,10 +32,10 @@ The application does not show an icon on the taskbar, but provides a system tray
 
 ## Installation
 
-Install **presen-time-bar** using pipx:
+Install **three-bell-bar** using pipx:
 
 ```bash
-pipx install git+https://github.com/tos-kamiya/presen-time-bar
+pipx install git+https://github.com/tos-kamiya/three-bell-timer
 ```
 
 *Note: pipx is recommended for installing Python CLI applications in isolated environments. If you don't have pipx installed, you can get it via:*
@@ -48,41 +48,41 @@ python3 -m pipx ensurepath
 Alternatively, you can install with:
 
 ```bash
-git clone https://github.com/tos-kamiya/presen-time-bar
+git clone https://github.com/tos-kamiya/three-bell-timer
 pip install .
 ```
 
 ## Usage
 
-Run the application from the command line with customizable options. You can set the time for the bells, the display index, the position (top or bottom), and the pixel height of the timer bar.
+By running the application from the command line, you can set the time for the bells, the display index, the position (top or bottom), and the pixel height of the timer bar.
 
 ### Command-line Examples
 
 - **Default settings (10, 15, 20 minutes):**
   ```bash
-  presen-time-bar
+  3bt
   ```
 
 - **One time value (Bell 1 only):**
   ```bash
-  presen-time-bar 12
+  3bt 12
   ```
 
 - **Two time values (Bell 1 uses the first value; Bells 2 use the second):**
   ```bash
-  presen-time-bar 10 20
+  3bt 10 20
   ```
 
 - **Three time values:**
   ```bash
-  presen-time-bar 10 15 20
+  3bt 10 15 20
   ```
 
 - **Additional options (e.g., display index, position, and pixel height):**
   ```bash
-  presen-time-bar 10 15 20 --display 1 --pos bottom --pixel-height 12
+  3bt 10 15 20 --display 1 --pos bottom --pixel-height 12
   ```
 
 ## License
 
-`presen-time-bar` is distributed under the terms of the [MIT](https://spdx.org/licenses/MIT.html) license.
+`three-bell-bar` is distributed under the terms of the [MIT](https://spdx.org/licenses/MIT.html) license.

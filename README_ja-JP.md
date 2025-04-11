@@ -1,4 +1,4 @@
-# presen-time-bar
+# three-bell-timer
 
 軽量で透過性のある PyQt5 ベースのプレゼンテーション用タイマーです。  
 デスクトップに重ねて表示される水平の進捗バーを提供し、常に最前面に表示されます。  
@@ -35,10 +35,10 @@
 
 ## インストール
 
-**presen-time-bar** は pipx を使用してインストールできます:
+**three-bell-timer** は pipx を使用してインストールできます:
 
 ```bash
-pipx install git+https://github.com/tos-kamiya/presen-time-bar
+pipx install git+https://github.com/tos-kamiya/three-bell-timer
 ```
 
 *注: pipx は Python CLI アプリケーションを隔離された環境にインストールするのに推奨されています。まだ pipx をインストールしていない場合は、以下のコマンドでインストールしてください:*
@@ -51,42 +51,42 @@ python3 -m pipx ensurepath
 または、次のコマンドでもインストール可能です:
 
 ```bash
-git clone https://github.com/tos-kamiya/presen-time-bar
+git clone https://github.com/tos-kamiya/three-bell-timer
 pip install .
 ```
 
 ## 使用方法
 
-コマンドラインから実行し、オプションでタイマーの各鈴の時刻、ディスプレイ番号、配置位置（上端または下端）、  
+コマンドラインから実行すると、オプションでタイマーの各鈴の時刻、ディスプレイ番号、配置位置（上端または下端）、  
 タイマーバーのピクセル高さを設定できます。
 
 ### コマンドライン例
 
 - **デフォルト設定 (10, 15, 20 分):**
   ```bash
-  presen-time-bar
+  3bt
   ```
 
 - **1 つの時間指定 (1鈴のみ):**
   ```bash
-  presen-time-bar 12
+  3bt 12
   ```
 
 - **2 つの時間指定 (1鈴は最初の値、2鈴は2番目の値):**
   ```bash
-  presen-time-bar 10 20
+  3bt 10 20
   ```
 
 - **3 つの時間指定:**
   ```bash
-  presen-time-bar 10 15 20
+  3bt 10 15 20
   ```
 
 - **追加オプション (例: ディスプレイ番号、配置位置、ピクセル高さ):**
   ```bash
-  presen-time-bar 10 15 20 --display 1 --pos bottom --pixel-height 12
+  3bt 10 15 20 --display 1 --pos bottom --pixel-height 12
   ```
 
 ## ライセンス
 
-`presen-time-bar` は [MIT](https://spdx.org/licenses/MIT.html) ライセンスの下で配布されています。
+`three-bell-timer` は [MIT](https://spdx.org/licenses/MIT.html) ライセンスの下で配布されています。

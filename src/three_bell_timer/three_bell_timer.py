@@ -1,7 +1,9 @@
 import argparse
 import colorsys
 import os
+import platform
 import sys
+import shutil
 import time
 from typing import List, Tuple
 
@@ -12,6 +14,36 @@ try:
     from .__about__ import __version__
 except ImportError as e:
     __version__ = "(unknown)"
+
+
+def generate_desktop_file():
+    if platform.system() != "Linux":
+        sys.exit("Error: .desktop file is valid only on Linux system.")
+
+    exec_path = shutil.which("3bt") or os.path.abspath(sys.argv[0])
+
+    icon_path = find_icon_file("icon256.png") or ""
+
+    desktop_file_content = f"""[Desktop Entry]
+Name=Three-bell timer
+Comment=A lightweight timer designed for presentations.
+Exec={exec_path}
+Icon={icon_path}
+Terminal=false
+Type=Application
+Categories=Utility;
+"""
+    dest_file = os.path.join(os.getcwd(), "3bt.desktop")
+
+    try:
+        with open(dest_file, "w") as f:
+            f.write(desktop_file_content)
+        print(f".desktop file generated at {dest_file}", file=sys.stderr)
+        print("To integrate with your system, copy this file to ~/.local/share/applications/", file=sys.stderr)
+        print("For example:", file=sys.stderr)
+        print("  cp 3bt.desktop ~/.local/share/applications/", file=sys.stderr)
+    except Exception as e:
+        sys.exit(f"Error: Failed to generate .desktop file: {e}")
 
 
 def find_icon_file(filename):
@@ -168,8 +200,8 @@ class TimerBar(QtWidgets.QWidget):
                 base_color = (0, 135, 158)
             else:
                 base_color = (255, 171, 91)
-            light_color: QtGui.QColor = QtGui.QColor(*modify_v(base_color, 0.1))
-            light_color.setAlpha(150 if self._is_paused else 100)
+            light_color: QtGui.QColor = QtGui.QColor(*modify_v(base_color, 0.3))
+            light_color.setAlpha(100 if self._is_paused else 100)
             dark_color: QtGui.QColor = QtGui.QColor(*modify_v(base_color, -0.1))
             dark_color.setAlpha(250 if self._is_paused else 220)
 
@@ -202,9 +234,9 @@ class TimerBar(QtWidgets.QWidget):
                 # When the timer is running, cycle through 1, 2, and 3 markers.
                 # When paused, use a fixed single marker.
                 n: int = (int(time.time()) % 3) + 1 if not self._is_paused else 1
-                marker_size: float = (total_height - 2 * gap) * 0.5
+                marker_size: float = (total_height - 2 * gap) * 0.8
                 spacing: float = 1
-                hand_x: float = rect.left() + dark_width
+                hand_x: float = rect.left() + dark_width - marker_size / 2
                 hand_color: QtGui.QColor = QtGui.QColor(255, 255, 255)
                 hand_color.setAlpha(180)
                 painter.setBrush(hand_color)
@@ -221,7 +253,7 @@ class TimerBar(QtWidgets.QWidget):
                 border_color: QtGui.QColor = QtGui.QColor(*base_color)
                 border_color.setAlpha(240)
                 pen: QtGui.QPen = QtGui.QPen(border_color)
-                pen.setWidth(1)
+                pen.setWidth(2)
                 painter.setPen(pen)
                 painter.setBrush(QtCore.Qt.NoBrush)
                 painter.drawRoundedRect(rect, radius, radius)
@@ -406,8 +438,16 @@ def main() -> None:
     parser.add_argument(
         "--pixel-height", "-s", type=int, default=10, help="Height of the timer bar in pixels (default: 10)"
     )
+    parser.add_argument(
+        "--generate-desktop", action="store_true",
+        help="Generate a .desktop file in the current directory"
+    )
     parser.add_argument("--version", action="version", version="%(prog)s " + __version__)
     args = parser.parse_args()
+
+    if args.generate_desktop:
+        generate_desktop_file()
+        sys.exit(0)
 
     # Determine time settings based on the number of values provided
     if len(args.times) == 1:

@@ -2,4 +2,4 @@
 #
 # SPDX-License-Identifier: MIT
 
-from .presen_time_bar import main
+from .three_bell_timer import main
