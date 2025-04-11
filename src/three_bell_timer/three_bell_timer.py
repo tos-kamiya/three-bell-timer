@@ -179,7 +179,7 @@ class TimerBar(QtWidgets.QWidget):
         total_height: float = self.height() if self._is_paused else self.running_bar_display_height
         gap: float = 2  # Margin inside each marble
         marble_width: float = total_width / self.total_minutes
-        radius: float = (total_height - 2 * gap) / 3
+        radius: float = (total_height - 2 * gap) / 4
         if radius < 0.5:
             radius = 0.0
 
@@ -234,11 +234,10 @@ class TimerBar(QtWidgets.QWidget):
                 # When the timer is running, cycle through 1, 2, and 3 markers.
                 # When paused, use a fixed single marker.
                 n: int = (int(time.time()) % 3) + 1 if not self._is_paused else 1
-                marker_size: float = (total_height - 2 * gap) * 0.8
+                marker_size: float = (total_height - 2 * gap) * 0.75
                 spacing: float = 1
                 hand_x: float = rect.left() + dark_width - marker_size / 2
                 hand_color: QtGui.QColor = QtGui.QColor(255, 255, 255)
-                hand_color.setAlpha(180)
                 painter.setBrush(hand_color)
                 painter.setPen(QtCore.Qt.NoPen)
                 for j in range(n):
@@ -246,7 +245,7 @@ class TimerBar(QtWidgets.QWidget):
                     line_rect: QtCore.QRectF = QtCore.QRectF(
                         x_i, (total_height - marker_size) / 2, marker_size, marker_size
                     )
-                    painter.drawRoundedRect(line_rect, radius, radius)
+                    painter.drawEllipse(line_rect)
 
             # When paused, draw a border around each marble with opaque color
             if self._is_paused:
@@ -258,19 +257,20 @@ class TimerBar(QtWidgets.QWidget):
                 painter.setBrush(QtCore.Qt.NoBrush)
                 painter.drawRoundedRect(rect, radius, radius)
 
-        # When paused, draw a large "▶" icon and markers (the numbers) on the left edge.
+        # When paused, draw a large "▶" icon and bell markers (the numbers).
         if self._is_paused:
             icon_area: float = total_height  # Square region for the icon
-            icon_rect: QtCore.QRectF = QtCore.QRectF(0, 0, icon_area * 2, icon_area)
-            font: QtGui.QFont = painter.font()
-            font.setBold(True)
-            font.setPointSizeF(total_height * 0.5)
-            painter.setFont(font)
-            painter.setPen(QtGui.QColor(255, 255, 255))
-            painter.drawText(icon_rect, QtCore.Qt.AlignCenter, "▶")
+            icon_rect: QtCore.QRectF = QtCore.QRectF(0, 0, icon_area, icon_area)
+            triangle = QtGui.QPolygonF()
+            triangle.append(QtCore.QPointF(icon_rect.left() + icon_rect.width() * 0.3, icon_rect.top() + icon_rect.height() * 0.2))
+            triangle.append(QtCore.QPointF(icon_rect.left() + icon_rect.width() * 0.3, icon_rect.top() + icon_rect.height() * 0.8))
+            triangle.append(QtCore.QPointF(icon_rect.left() + icon_rect.width() * 0.8, icon_rect.top() + icon_rect.height() * 0.5))
+            painter.setPen(QtCore.Qt.NoPen)
+            painter.setBrush(QtGui.QColor(255, 255, 255))
+            painter.drawPolygon(triangle)
 
-            markers: List[int] = [self.hint_time, self.presentation_end, self.total_minutes]
-            for mark in markers:
+            bell_markers: List[int] = [self.hint_time, self.presentation_end, self.total_minutes]
+            for mark in bell_markers:
                 center_x: float = mark * marble_width - marble_width / 2
                 rect_marker: QtCore.QRectF = QtCore.QRectF(center_x, 0, marble_width / 2, total_height)
                 painter.drawText(rect_marker, QtCore.Qt.AlignCenter, str(mark))
@@ -359,7 +359,7 @@ class PresentationTimerWindow(QtWidgets.QMainWindow):
         """
         if event.button() == QtCore.Qt.LeftButton:
             # If paused and clicking in the "▶" icon area, resume without showing the menu
-            if self.timerBar._is_paused and event.pos().x() < self.paused_height * 2:
+            if self.timerBar._is_paused and event.pos().x() < self.paused_height:
                 self.timerBar.toggle_pause()  # Resume
                 # Recalculate desktop size and adjust window position on resume
                 self.adjustPosition()
