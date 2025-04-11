@@ -52,6 +52,42 @@ def modify_v(rgb: Tuple[int, int, int], v_add: float) -> Tuple[int, int, int]:
     return new_rgb
 
 
+class TimeSettingsDialog(QtWidgets.QDialog):
+    """Dialog for changing bell times (in minutes)."""
+    def __init__(self, parent: QtWidgets.QWidget = None, time1: int = 10, time2: int = 15, time3: int = 20) -> None:
+        super().__init__(parent)
+        self.setWindowTitle("Change Bell Times")
+        layout: QtWidgets.QFormLayout = QtWidgets.QFormLayout(self)
+        
+        self.spin1: QtWidgets.QSpinBox = QtWidgets.QSpinBox(self)
+        self.spin1.setMinimum(1)
+        self.spin1.setMaximum(999)
+        self.spin1.setValue(time1)
+        
+        self.spin2: QtWidgets.QSpinBox = QtWidgets.QSpinBox(self)
+        self.spin2.setMinimum(1)
+        self.spin2.setMaximum(999)
+        self.spin2.setValue(time2)
+        
+        self.spin3: QtWidgets.QSpinBox = QtWidgets.QSpinBox(self)
+        self.spin3.setMinimum(1)
+        self.spin3.setMaximum(999)
+        self.spin3.setValue(time3)
+        
+        layout.addRow("Bell 1 (minutes):", self.spin1)
+        layout.addRow("Bell 2 (minutes):", self.spin2)
+        layout.addRow("Bell 3 (minutes):", self.spin3)
+        
+        button_box: QtWidgets.QDialogButtonBox = QtWidgets.QDialogButtonBox(self)
+        button_box.setStandardButtons(QtWidgets.QDialogButtonBox.Cancel | QtWidgets.QDialogButtonBox.Ok)
+        # Change the Ok button text to "Initialize"
+        button_box.button(QtWidgets.QDialogButtonBox.Ok).setText("Initialize")
+        layout.addWidget(button_box)
+        
+        button_box.accepted.connect(self.accept)
+        button_box.rejected.connect(self.reject)
+
+
 class TimerBar(QtWidgets.QWidget):
     """
     A widget that draws each minute as a rounded rectangle ("marble").
@@ -73,15 +109,18 @@ class TimerBar(QtWidgets.QWidget):
 
     def __init__(self, time1: int = 10, time2: int = 15, time3: int = 20, running_bar_display_height: int = 10) -> None:
         super().__init__()
+        time2 = max(time1, time2)
+        time3 = max(time2, time3)
+
         self.hint_time: int = time1
         self.presentation_end: int = time2
         self.total_minutes: int = time3
         self.running_bar_display_height: int = running_bar_display_height
 
-        # Timer for updating the display every second
+        # Timer for updating the display every 100 millisecond
         self.update_timer: QtCore.QTimer = QtCore.QTimer(self)
         self.update_timer.timeout.connect(self.update)
-        self.update_timer.start(1000)
+        self.update_timer.start(100)
 
         # Timing measurement (initially in paused state)
         self._accumulated_time: float = 0.0  # Accumulated seconds until paused
@@ -129,9 +168,9 @@ class TimerBar(QtWidgets.QWidget):
             else:
                 base_color = (255, 171, 91)
             light_color: QtGui.QColor = QtGui.QColor(*modify_v(base_color, 0.1))
-            light_color.setAlpha(80)
+            light_color.setAlpha(150 if self._is_paused else 100)
             dark_color: QtGui.QColor = QtGui.QColor(*modify_v(base_color, -0.1))
-            dark_color.setAlpha(180)
+            dark_color.setAlpha(250 if self._is_paused else 220)
 
             start_sec: float = i * 60
             end_sec: float = (i + 1) * 60
@@ -162,17 +201,15 @@ class TimerBar(QtWidgets.QWidget):
                 # When the timer is running, cycle through 1, 2, and 3 markers.
                 # When paused, use a fixed single marker.
                 n: int = (int(time.time()) % 3) + 1 if not self._is_paused else 1
-                marker_size: float = (total_height - 2 * gap) * 0.7
+                marker_size: float = (total_height - 2 * gap) * 0.5
                 spacing: float = 1
-                total_line_width: float = n * marker_size + (n - 1) * spacing
                 hand_x: float = rect.left() + dark_width
-                start_x: float = hand_x - total_line_width / 2
                 hand_color: QtGui.QColor = QtGui.QColor(255, 255, 255)
                 hand_color.setAlpha(180)
                 painter.setBrush(hand_color)
                 painter.setPen(QtCore.Qt.NoPen)
                 for j in range(n):
-                    x_i: float = start_x + j * (marker_size + spacing)
+                    x_i: float = hand_x + j * (marker_size + spacing)
                     line_rect: QtCore.QRectF = QtCore.QRectF(x_i, (total_height - marker_size) / 2, marker_size, marker_size)
                     painter.drawRoundedRect(line_rect, radius, radius)
 
@@ -211,8 +248,10 @@ def add_menu_items(menu: QtWidgets.QMenu):
     move_bottom_action = menu.addAction("Move to Bottom")
     move_next_disp_action = menu.addAction("Move to Next Display")
     menu.addSeparator()
+    change_times_action = menu.addAction("Change Bell Times")
+    menu.addSeparator()
     exit_action = menu.addAction("Exit")
-    return resume_action, move_top_action, move_bottom_action, move_next_disp_action, exit_action
+    return resume_action, move_top_action, move_bottom_action, move_next_disp_action, change_times_action, exit_action
 
 
 class PresentationTimerWindow(QtWidgets.QMainWindow):
@@ -295,7 +334,7 @@ class PresentationTimerWindow(QtWidgets.QMainWindow):
             pos = event.globalPos()
             menu: QtWidgets.QMenu = QtWidgets.QMenu(self)
 
-            resume_action, move_top_action, move_bottom_action, move_next_disp_action, exit_action = add_menu_items(menu)
+            resume_action, move_top_action, move_bottom_action, move_next_disp_action, change_times_action, exit_action = add_menu_items(menu)
             action = menu.exec_(pos)
             if action == resume_action:
                 self.timerBar.toggle_pause()
@@ -311,8 +350,31 @@ class PresentationTimerWindow(QtWidgets.QMainWindow):
                 if len(screens) > 1:
                     self.display_index = (self.display_index + 1) % len(screens)
                 self.adjustPosition()
+            elif action == change_times_action:
+                self.update_time_settings()
             elif action == exit_action:
                 QtWidgets.QApplication.quit()
+
+    def update_time_settings(self) -> None:
+        dialog = TimeSettingsDialog(self, self.time1, self.time2, self.time3)
+        if dialog.exec_() != QtWidgets.QDialog.Accepted:
+            return
+
+        new_time1 = dialog.spin1.value()
+        new_time2 = dialog.spin2.value()
+        new_time3 = dialog.spin3.value()
+
+        # Update the timer settings in the main window and timer bar.
+        self.time1, self.time2, self.time3 = new_time1, new_time2, new_time3
+        self.timerBar.hint_time = new_time1
+        self.timerBar.presentation_end = new_time2
+        self.timerBar.total_minutes = new_time3
+
+        # Reinitialize the timer (reset elapsed time and pause)
+        self.timerBar._accumulated_time = 0.0
+        self.timerBar._running_start_time = time.time()
+        self.timerBar._is_paused = True
+        self.adjustPosition()
 
 
 def main() -> None:
@@ -367,7 +429,7 @@ def main() -> None:
 
     # Set up the tray menu with the desired actions
     tray_menu: QtWidgets.QMenu = QtWidgets.QMenu()
-    resume_action, move_top_action, move_bottom_action, move_next_disp_action, exit_action = add_menu_items(tray_menu)
+    resume_action, move_top_action, move_bottom_action, move_next_disp_action, change_times_action, exit_action = add_menu_items(tray_menu)
     tray_icon.setContextMenu(tray_menu)
 
     # Connect the actions to corresponding handlers.
@@ -378,6 +440,7 @@ def main() -> None:
         setattr(mainWindow, 'display_index', (mainWindow.display_index + 1) % len(QtWidgets.QApplication.screens())),
         mainWindow.adjustPosition()
     ))
+    change_times_action.triggered.connect(lambda: (mainWindow.update_time_settings(), mainWindow.adjustPosition()))
     exit_action.triggered.connect(QtWidgets.QApplication.quit)
 
     # Show the system tray icon
