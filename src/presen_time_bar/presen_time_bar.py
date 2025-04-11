@@ -128,10 +128,10 @@ class TimerBar(QtWidgets.QWidget):
                 base_color = (0, 135, 158)
             else:
                 base_color = (255, 171, 91)
-            light_color: QtGui.QColor = QtGui.QColor(*modify_v(base_color, 0.3))
+            light_color: QtGui.QColor = QtGui.QColor(*modify_v(base_color, 0.1))
             light_color.setAlpha(80)
-            dark_color: QtGui.QColor = QtGui.QColor(*base_color)
-            dark_color.setAlpha(240)
+            dark_color: QtGui.QColor = QtGui.QColor(*modify_v(base_color, -0.1))
+            dark_color.setAlpha(180)
 
             start_sec: float = i * 60
             end_sec: float = (i + 1) * 60
@@ -158,12 +158,23 @@ class TimerBar(QtWidgets.QWidget):
                 painter.drawRoundedRect(rect, radius, radius)
                 painter.restore()
 
-                hand_x = rect.left() + dark_width
-                hand_rect: QtCore.QRectF = QtCore.QRectF(hand_x, gap, 2, total_height - 2 * gap)
+                # Draw an animated vertical indicator at the boundary.
+                # When the timer is running, cycle through 1, 2, and 3 markers.
+                # When paused, use a fixed single marker.
+                n: int = (int(time.time()) % 3) + 1 if not self._is_paused else 1
+                marker_size: float = (total_height - 2 * gap) * 0.7
+                spacing: float = 1
+                total_line_width: float = n * marker_size + (n - 1) * spacing
+                hand_x: float = rect.left() + dark_width
+                start_x: float = hand_x - total_line_width / 2
                 hand_color: QtGui.QColor = QtGui.QColor(255, 255, 255)
-                hand_color.setAlpha(240)
+                hand_color.setAlpha(180)
                 painter.setBrush(hand_color)
-                painter.drawRect(hand_rect)
+                painter.setPen(QtCore.Qt.NoPen)
+                for j in range(n):
+                    x_i: float = start_x + j * (marker_size + spacing)
+                    line_rect: QtCore.QRectF = QtCore.QRectF(x_i, (total_height - marker_size) / 2, marker_size, marker_size)
+                    painter.drawRoundedRect(line_rect, radius, radius)
 
             # When paused, draw a border around each marble with opaque color
             if self._is_paused:
