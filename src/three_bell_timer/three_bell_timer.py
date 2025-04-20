@@ -266,14 +266,16 @@ class TimerBar(QtWidgets.QWidget):
             triangle.append(QtCore.QPointF(icon_rect.left() + icon_rect.width() * 0.3, icon_rect.top() + icon_rect.height() * 0.8))
             triangle.append(QtCore.QPointF(icon_rect.left() + icon_rect.width() * 0.8, icon_rect.top() + icon_rect.height() * 0.5))
             painter.setPen(QtCore.Qt.NoPen)
-            painter.setBrush(QtGui.QColor(255, 255, 255))
+            marker_color = QtGui.QColor(255, 255, 255)
+            marker_color.setAlpha(180)
+            painter.setBrush(marker_color)
             painter.drawPolygon(triangle)
 
             font: QtGui.QFont = painter.font()
             font.setPointSizeF(total_height * 0.5)
             font.setBold(True)
             painter.setFont(font)
-            painter.setPen(QtGui.QColor(255, 255, 255))
+            painter.setPen(marker_color)
             bell_markers: List[int] = [self.hint_time, self.presentation_end, self.total_minutes]
             for mark in bell_markers:
                 rect_marker: QtCore.QRectF = QtCore.QRectF(mark * marble_width - marble_width - gap, 0, marble_width, total_height)
