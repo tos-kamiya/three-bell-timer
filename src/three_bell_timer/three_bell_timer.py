@@ -178,6 +178,7 @@ class TimerBar(QtWidgets.QWidget):
         # Use full widget height when paused; otherwise, use the running bar height.
         total_height: float = self.height() if self._is_paused else self.running_bar_display_height
         gap: float = 2  # Margin inside each marble
+        border_thickness: int = 2
         marble_width: float = total_width / self.total_minutes
         radius: float = (total_height - 2 * gap) / 4
         if radius < 0.5:
@@ -252,7 +253,7 @@ class TimerBar(QtWidgets.QWidget):
                 border_color: QtGui.QColor = QtGui.QColor(*base_color)
                 border_color.setAlpha(240)
                 pen: QtGui.QPen = QtGui.QPen(border_color)
-                pen.setWidth(2)
+                pen.setWidth(border_thickness)
                 painter.setPen(pen)
                 painter.setBrush(QtCore.Qt.NoBrush)
                 painter.drawRoundedRect(rect, radius, radius)
@@ -278,7 +279,8 @@ class TimerBar(QtWidgets.QWidget):
             painter.setPen(marker_color)
             bell_markers: List[int] = [self.hint_time, self.presentation_end, self.total_minutes]
             for mark in bell_markers:
-                rect_marker: QtCore.QRectF = QtCore.QRectF(mark * marble_width - marble_width - gap, 0, marble_width, total_height)
+                text_box_width = marble_width * 3
+                rect_marker: QtCore.QRectF = QtCore.QRectF(mark * marble_width - text_box_width - (2 * gap + border_thickness), 0, text_box_width, total_height)
                 painter.drawText(rect_marker, QtCore.Qt.AlignRight | QtCore.Qt.AlignVCenter, str(mark))
 
 
