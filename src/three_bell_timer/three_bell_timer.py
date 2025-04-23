@@ -5,10 +5,11 @@ import platform
 import sys
 import shutil
 import time
-from typing import List, Tuple
+from typing import List, Optional, Tuple
 
 from PyQt5 import QtWidgets, QtCore, QtGui
-from PyQt5.QtGui import QIcon
+from PyQt5.QtCore import QPointF, QRect, QRectF, Qt
+from PyQt5.QtGui import QColor, QIcon, QPen
 
 try:
     from .__about__ import __version__
@@ -64,8 +65,18 @@ def find_icon_file(filename):
     return None
 
 
-def modify_v(rgb: Tuple[int, int, int], v_add: float) -> Tuple[int, int, int]:
-    assert -1.0 <= v_add <= 1.0
+def clip01(v):
+    return max(0.0, min(1.0, v))
+
+
+def clip255(v):
+    return max(0, min(255, int(v)))
+
+
+def modify_hsv(rgb: Tuple[int, int, int], h: float = 0.0, s: float = 0.0, v: float = 0.0) -> Tuple[int, int, int]:
+    assert -1.0 <= h <= 1.0
+    assert -1.0 <= s <= 1.0
+    assert -1.0 <= v <= 1.0
 
     r, g, b = rgb
     assert 0 <= r <= 255
@@ -73,15 +84,30 @@ def modify_v(rgb: Tuple[int, int, int], v_add: float) -> Tuple[int, int, int]:
     assert 0 <= b <= 255
 
     rgb_01 = (r / 255, g / 255, b / 255)  # Normalize RGB to 0-1 range
-    hsv = colorsys.rgb_to_hsv(*rgb_01)
+    h_value, s_value, v_value = colorsys.rgb_to_hsv(*rgb_01)
 
-    new_v = hsv[2] + v_add
-    new_hsv = (hsv[0], hsv[1], max(0.0, min(1.0, new_v)))
+    new_hsv = ((h_value + h) % 1.0, clip01(s_value + s), clip01(v_value + v))
 
     new_rgb_01 = colorsys.hsv_to_rgb(*new_hsv)
-    new_rgb = int(new_rgb_01[0] * 255), int(new_rgb_01[1] * 255), int(new_rgb_01[2] * 255)
+    new_rgb = clip255(new_rgb_01[0] * 255), clip255(new_rgb_01[1] * 255), clip255(new_rgb_01[2] * 255)
 
     return new_rgb
+
+
+def interpolate_rgb(
+    color1: Tuple[int, int, int], color2: Optional[Tuple[int, int, int]] = None, ratio: float = 1.0
+) -> Tuple[int, int, int]:
+    if color2 is None:
+        color2 = (0, 0, 0)
+
+    r1, g1, b1 = color1
+    r2, g2, b2 = color2
+
+    r = clip255((1.0 - ratio) * r2 + ratio * r1)
+    g = clip255((1.0 - ratio) * g2 + ratio * g1)
+    b = clip255((1.0 - ratio) * b2 + ratio * b1)
+
+    return (r, g, b)
 
 
 class TimeSettingsDialog(QtWidgets.QDialog):
@@ -131,11 +157,6 @@ class TimerBar(QtWidgets.QWidget):
     side is drawn with the dark color and the right side with the light color using a gradient-like
     effect.
 
-    Colors are set as follows:
-      - For minutes 0 to (time1 - 1):          (0, 48, 146)
-      - For minutes time1 to (time2 - 1):        (0, 135, 158)
-      - For minutes time2 and beyond:           (255, 171, 91)
-
     In the paused state, a large "▶" icon is drawn on the left, and the markers indicating the times
     (e.g. 10, 15, 20) are displayed at the positions corresponding to Bell 1, Bell 2, and Bell 3.
     """
@@ -178,11 +199,14 @@ class TimerBar(QtWidgets.QWidget):
         # Use full widget height when paused; otherwise, use the running bar height.
         total_height: float = self.height() if self._is_paused else self.running_bar_display_height
         gap: float = 2  # Margin inside each marble
-        border_thickness: int = 2
+        border_thickness: int = 0.7
         marble_width: float = total_width / self.total_minutes
         radius: float = (total_height - 2 * gap) / 4
         if radius < 0.5:
             radius = 0.0
+
+        marker_color: QColor = QColor(255, 255, 255)
+        marker_color.setAlpha(240)
 
         # Calculate elapsed seconds
         elapsed: float
@@ -193,7 +217,7 @@ class TimerBar(QtWidgets.QWidget):
 
         for i in range(self.total_minutes):
             x: float = i * marble_width
-            rect: QtCore.QRectF = QtCore.QRectF(x + gap, gap, marble_width - 2 * gap, total_height - 2 * gap)
+            rect: QRectF = QRectF(x + gap, gap, marble_width - 2 * gap, total_height - 2 * gap)
             # Set base color according to the minute index
             if i < self.hint_time:
                 base_color = (0, 48, 146)
@@ -201,15 +225,15 @@ class TimerBar(QtWidgets.QWidget):
                 base_color = (0, 135, 158)
             else:
                 base_color = (255, 171, 91)
-            light_color: QtGui.QColor = QtGui.QColor(*modify_v(base_color, 0.3))
-            light_color.setAlpha(100 if self._is_paused else 100)
-            dark_color: QtGui.QColor = QtGui.QColor(*modify_v(base_color, -0.1))
-            dark_color.setAlpha(250 if self._is_paused else 220)
+            light_color: QColor = QColor(*interpolate_rgb(base_color, (255, 255, 255), 0.7))
+            light_color.setAlpha(130)
+            dark_color: QColor = QColor(*base_color)
+            dark_color.setAlpha(250)
 
             start_sec: float = i * 60
             end_sec: float = (i + 1) * 60
 
-            painter.setPen(QtCore.Qt.NoPen)
+            painter.setPen(Qt.NoPen)
             if elapsed >= end_sec:
                 # This marble is completely elapsed
                 painter.setBrush(dark_color)
@@ -224,7 +248,7 @@ class TimerBar(QtWidgets.QWidget):
                 painter.setBrush(light_color)
                 painter.drawRoundedRect(rect, radius, radius)
                 dark_width: float = rect.width() * fraction
-                dark_rect: QtCore.QRectF = QtCore.QRectF(rect.left(), rect.top(), dark_width, rect.height())
+                dark_rect: QRectF = QRectF(rect.left(), rect.top(), dark_width, rect.height())
                 painter.save()
                 painter.setClipRect(dark_rect)  # Clip to maintain rounded corners
                 painter.setBrush(dark_color)
@@ -235,40 +259,35 @@ class TimerBar(QtWidgets.QWidget):
                 # When the timer is running, cycle through 1, 2, and 3 markers.
                 # When paused, use a fixed single marker.
                 n: int = (int(time.time()) % 3) + 1 if not self._is_paused else 1
-                marker_size: float = (total_height - 2 * gap) * 0.75
+                marker_size: float = (total_height - 2 * gap) * 0.72
                 spacing: float = 1
                 hand_x: float = rect.left() + dark_width - marker_size / 2
-                hand_color: QtGui.QColor = QtGui.QColor(255, 255, 255)
-                painter.setBrush(hand_color)
-                painter.setPen(QtCore.Qt.NoPen)
+                painter.setBrush(marker_color)
+                painter.setPen(Qt.NoPen)
                 for j in range(n):
                     x_i: float = hand_x + j * (marker_size + spacing)
-                    line_rect: QtCore.QRectF = QtCore.QRectF(
+                    line_rect: QRectF = QRectF(
                         x_i, (total_height - marker_size) / 2, marker_size, marker_size
                     )
                     painter.drawEllipse(line_rect)
 
             # When paused, draw a border around each marble with opaque color
             if self._is_paused:
-                border_color: QtGui.QColor = QtGui.QColor(*base_color)
-                border_color.setAlpha(240)
-                pen: QtGui.QPen = QtGui.QPen(border_color)
-                pen.setWidth(border_thickness)
+                border_color: QColor = QColor(*modify_hsv(base_color, v=0.2))
+                pen: QPen = QPen(border_color, border_thickness)
                 painter.setPen(pen)
-                painter.setBrush(QtCore.Qt.NoBrush)
+                painter.setBrush(Qt.NoBrush)
                 painter.drawRoundedRect(rect, radius, radius)
 
         # When paused, draw a large "▶" icon and bell markers (the numbers).
         if self._is_paused:
             icon_area: float = total_height  # Square region for the icon
-            icon_rect: QtCore.QRectF = QtCore.QRectF(0, 0, icon_area, icon_area)
+            icon_rect: QRectF = QRectF(0, 0, icon_area, icon_area)
             triangle = QtGui.QPolygonF()
-            triangle.append(QtCore.QPointF(icon_rect.left() + icon_rect.width() * 0.3, icon_rect.top() + icon_rect.height() * 0.2))
-            triangle.append(QtCore.QPointF(icon_rect.left() + icon_rect.width() * 0.3, icon_rect.top() + icon_rect.height() * 0.8))
-            triangle.append(QtCore.QPointF(icon_rect.left() + icon_rect.width() * 0.8, icon_rect.top() + icon_rect.height() * 0.5))
-            painter.setPen(QtCore.Qt.NoPen)
-            marker_color = QtGui.QColor(255, 255, 255)
-            marker_color.setAlpha(180)
+            triangle.append(QPointF(icon_rect.left() + icon_rect.width() * 0.3, icon_rect.top() + icon_rect.height() * 0.2))
+            triangle.append(QPointF(icon_rect.left() + icon_rect.width() * 0.3, icon_rect.top() + icon_rect.height() * 0.8))
+            triangle.append(QPointF(icon_rect.left() + icon_rect.width() * 0.8, icon_rect.top() + icon_rect.height() * 0.5))
+            painter.setPen(Qt.NoPen)
             painter.setBrush(marker_color)
             painter.drawPolygon(triangle)
 
@@ -280,8 +299,8 @@ class TimerBar(QtWidgets.QWidget):
             bell_markers: List[int] = [self.hint_time, self.presentation_end, self.total_minutes]
             for mark in bell_markers:
                 text_box_width = marble_width * 3
-                rect_marker: QtCore.QRectF = QtCore.QRectF(mark * marble_width - text_box_width - (2 * gap + border_thickness), 0, text_box_width, total_height)
-                painter.drawText(rect_marker, QtCore.Qt.AlignRight | QtCore.Qt.AlignVCenter, str(mark))
+                rect_marker: QRectF = QRectF(mark * marble_width - text_box_width - (2 * gap + border_thickness), 0, text_box_width, total_height)
+                painter.drawText(rect_marker, Qt.AlignRight | Qt.AlignVCenter, str(mark))
 
 
 def add_menu_items(menu: QtWidgets.QMenu):
@@ -330,8 +349,8 @@ class PresentationTimerWindow(QtWidgets.QMainWindow):
 
     def setup_window(self) -> None:
         self.setWindowTitle("Presentation Timer")
-        self.setWindowFlags(QtCore.Qt.Tool | QtCore.Qt.FramelessWindowHint | QtCore.Qt.WindowStaysOnTopHint)
-        self.setAttribute(QtCore.Qt.WA_TranslucentBackground)
+        self.setWindowFlags(Qt.Tool | Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint)
+        self.setAttribute(Qt.WA_TranslucentBackground)
         # Set the timer bar widget as the central widget
         self.timerBar: TimerBar = TimerBar(self.time1, self.time2, self.time3, self.running_bar_display_height)
         self.setCentralWidget(self.timerBar)
@@ -344,7 +363,7 @@ class PresentationTimerWindow(QtWidgets.QMainWindow):
         """
         screens = QtWidgets.QApplication.screens()
         target_screen = screens[self.display_index] if self.display_index < len(screens) else screens[0]
-        available: QtCore.QRect = target_screen.availableGeometry()
+        available: QRect = target_screen.availableGeometry()
         new_height: int = self.paused_height if self.timerBar._is_paused else self.running_height
         x: int = available.left() + self.margin
         width: int = available.width() - 2 * self.margin
@@ -365,7 +384,7 @@ class PresentationTimerWindow(QtWidgets.QMainWindow):
           - Move to Next Display
           - Exit
         """
-        if event.button() == QtCore.Qt.LeftButton:
+        if event.button() == Qt.LeftButton:
             # If paused and clicking in the "▶" icon area, resume without showing the menu
             if self.timerBar._is_paused and event.pos().x() < self.paused_height:
                 self.timerBar.toggle_pause()  # Resume
@@ -373,7 +392,7 @@ class PresentationTimerWindow(QtWidgets.QMainWindow):
                 self.adjustPosition()
                 return
 
-        if event.button() in (QtCore.Qt.LeftButton, QtCore.Qt.RightButton):
+        if event.button() in (Qt.LeftButton, Qt.RightButton):
             pos = event.globalPos()
             menu: QtWidgets.QMenu = QtWidgets.QMenu(self)
 
