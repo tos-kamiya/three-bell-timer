@@ -188,7 +188,7 @@ class TimerBar(QtWidgets.QWidget):
         gap, border = 2, 0.5
         mw = w / self.model.total_minutes
         r = max(0.0, (h - 2 * gap) / 4)
-        mc = QColor(255, 255, 255)
+        mc = QColor(240, 240, 240)
         mc.setAlpha(240)
         el = self.model.elapsed()
         for i in range(self.model.total_minutes):
@@ -201,7 +201,7 @@ class TimerBar(QtWidgets.QWidget):
             else:
                 base = (255, 171, 91)
             lc = QColor(*interpolate_rgb(base, (255, 255, 255), 0.7))
-            lc.setAlpha(130)
+            lc.setAlpha(150)
             dc = QColor(*base)
             dc.setAlpha(250)
             painter.setPen(Qt.NoPen)
@@ -223,13 +223,13 @@ class TimerBar(QtWidgets.QWidget):
                 painter.setBrush(dc)
                 painter.drawRoundedRect(rect, r, r)
                 painter.restore()
-                n = (int(time.time()) % 3) + 1 if not self.model.is_paused else 1
-                ms, sp = (h - 2 * gap) * 0.72, 1
-                hx = rect.left() + dw - ms / 2
-                painter.setBrush(mc)
-                painter.setPen(Qt.NoPen)
-                for j in range(n):
-                    painter.drawEllipse(QRectF(hx + j * (ms + sp), (h - ms) / 2, ms, ms))
+                n = (int(time.time()) % 2) if not self.model.is_paused else 1
+                if n == 1:
+                    ms = (h - 2 * gap) * 0.72
+                    hx = rect.left() + dw - ms / 2
+                    painter.setBrush(mc)
+                    painter.setPen(Qt.NoPen)
+                    painter.drawEllipse(QRectF(hx, (h - ms) / 2, ms, ms))
             if self.model.is_paused:
                 bc = QColor(*modify_hsv(base, v=0.2, s=0.1))
                 painter.setBrush(Qt.NoBrush)
