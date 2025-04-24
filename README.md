@@ -1,51 +1,66 @@
 # three-bell-timer
 
-A lightweight timer designed for presentations. It displays a horizontal progress bar that overlays your desktop.
+A lightweight timer designed for presentations. It overlays your desktop with a horizontal progress bar that advances in real time.
 
 ## Features
 
-Time management for the so-called "Three Bells."
+### Three-Bell Time Management
 
-Typically, the first bell notifies the presenter that the end is near, the second bell marks the end of the presentation, and the third bell signals the end of the Q&A session.
+- **Bell 1:** Warns that the end is approaching.
+- **Bell 2:** Marks the end of the presentation.
+- **Bell 3:** Signals the end of the Q&A session.
 
-**Visual Progress Bar:**  
+### Visual Progress Bar
 
-The timer bar is divided into rounded rectangles (marble), one per minute.
-- Before a minute elapses, each marble is drawn with a light color.
-- After the minute has elapsed, it is drawn in a dark color.
-The timer bar appears at the top of the screen and updates periodically.
+- The bar is divided into _rounded marbles_, one per minute.
+  - **Before** a minute elapses: light color
+  - **After** a minute elapses: dark color
+- Updates every 100 ms for smooth progression.
 
-**Paused State Indicators:**  
+### Paused State Indicators
 
-When the timer starts, it is paused:
-- A large “▶” icon is shown on the left side of the bar.
-- The predetermined marker times (Bell 1, Bell 2, and Bell 3) are displayed in the bar.
+- **▶** icon on the left when paused
+- Numeric markers for Bell 1, Bell 2, and Bell 3
+- Click the ▶ to start/resume without opening the menu
 
-**Menu Options:**  
+### Display & Position Control
 
-Clicking on the “▶” icon resumes (or starts) the timer.  
-The right-click menu allows you to change the timer's position on the screen or move it to another display.
+- **Multiple displays:** shows bars on all screens by default
+- **`
+  --display all
+  --display 0
+  --display 0,1,2
+`** to choose specific screens
+- **`
+  --pos top
+  --pos bottom
+`** to set vertical placement
+- **Cycle Display Target** menu option to toggle between “all” and each individual screen
 
-**System Tray Icon:**  
+### System Tray Icon
 
-The application does not show an icon on the taskbar, but provides a system tray icon with the same context menu, making it convenient to access settings and controls.
+- No taskbar icon; use the tray menu for controls:
+  - Start/Pause
+  - Change bell times
+  - Cycle display target
+  - Move bar to top or bottom
+  - Exit application
 
 ## Installation
 
-Install **three-bell-bar** using pipx:
+Recommended: install with **pipx**:
 
 ```bash
 pipx install git+https://github.com/tos-kamiya/three-bell-timer
 ```
 
-*Note: pipx is recommended for installing Python CLI applications in isolated environments. If you don't have pipx installed, you can get it via:*
-
+If you don’t have pipx:
 ```bash
-python3 -m pip install pipx
+python3 -m pip install --user pipx
 python3 -m pipx ensurepath
 ```
 
-Alternatively, you can install with:
+Alternatively, install via pip:
 
 ```bash
 git clone https://github.com/tos-kamiya/three-bell-timer
@@ -54,35 +69,28 @@ pip install .
 
 ## Usage
 
-By running the application from the command line, you can set the time for the bells, the display index, the position (top or bottom), and the pixel height of the timer bar.
+Run `3bt` with optional arguments to customize bell times, displays, position, and bar height.
 
-### Command-line Examples
+```bash
+# Default: bells at 10,15,20 minutes on all displays, top position, 10px height
+3bt
 
-- **Default settings (10, 15, 20 minutes):**
-  ```bash
-  3bt
-  ```
+# Single time value: all three bells at 12 minutes
+3bt 12
 
-- **One time value (Bell 1 only):**
-  ```bash
-  3bt 12
-  ```
+# Two values: Bell1=10, Bell2&3=20
+3bt 10 20
 
-- **Two time values (Bell 1 uses the first value; Bells 2 use the second):**
-  ```bash
-  3bt 10 20
-  ```
+# Three values: Bell1=10, Bell2=15, Bell3=20 on display 1, bottom, 12px height
+3bt 10 15 20 --display 1 --pos bottom --pixel-height 12
 
-- **Three time values:**
-  ```bash
-  3bt 10 15 20
-  ```
+# Multiple displays: bars on screens 0 and 2 only
+3bt --display 0,2
 
-- **Additional options (e.g., display index, position, and pixel height):**
-  ```bash
-  3bt 10 15 20 --display 1 --pos bottom --pixel-height 12
-  ```
+# Explicit "all"
+3bt --display all
+```
 
 ## License
 
-`three-bell-bar` is distributed under the terms of the [MIT](https://spdx.org/licenses/MIT.html) license.
+Distributed under the terms of the [MIT](https://spdx.org/licenses/MIT.html) license.
