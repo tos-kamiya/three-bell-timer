@@ -268,35 +268,40 @@ class TimerBar(QtWidgets.QWidget):
         painter = QtGui.QPainter(self)
         painter.setRenderHint(QtGui.QPainter.Antialiasing)
         w, h = self.width(), (self.height() if self.model.is_paused else self.running_height)
-        gap, border = 2, 0.5
+        gap, border = 2, 1.3
         mw = w / self.model.total_minutes
         r = max(0.0, (h - 2 * gap) / 4)
         mc = QColor(240, 240, 240)
         mc.setAlpha(240)
+        base0 = (0, 53, 153)
         el = self.model.elapsed()
+        hand_rect = None
         for i in range(self.model.total_minutes):
             x = i * mw
             rect = QRectF(x + gap, gap, mw - 2 * gap, h - 2 * gap)
             if i < self.model.hint_time:
-                base = (0, 48, 146)
+                base = base0
             elif i < self.model.presentation_end:
-                base = (0, 135, 158)
+                base = (0, 125, 145)
             else:
-                base = (255, 171, 91)
-            lc = QColor(*interpolate_rgb(base, (255, 255, 255), 0.7))
-            lc.setAlpha(150)
+                base = (229, 153, 82)
+            lc = QColor(*base)
+            lc.setAlpha(80)
             dc = QColor(*base)
-            dc.setAlpha(250)
-            painter.setPen(Qt.NoPen)
+            bc = QColor(*modify_hsv(base, s=0.3))
+
             s_sec, e_sec = i * 60, (i + 1) * 60
             if el >= e_sec:
+                painter.setPen(QPen(bc, border))
                 painter.setBrush(dc)
                 painter.drawRoundedRect(rect, r, r)
-            elif el <= s_sec:
+            elif el < s_sec:
+                painter.setPen(QPen(bc, border))
                 painter.setBrush(lc)
                 painter.drawRoundedRect(rect, r, r)
             else:
                 frac = (el - s_sec) / 60.0
+                painter.setPen(QPen(bc, 1.3))
                 painter.setBrush(lc)
                 painter.drawRoundedRect(rect, r, r)
                 dw = rect.width() * frac
@@ -306,18 +311,18 @@ class TimerBar(QtWidgets.QWidget):
                 painter.setBrush(dc)
                 painter.drawRoundedRect(rect, r, r)
                 painter.restore()
-                n = (int(time.time()) % 2) if not self.model.is_paused else 1
-                if n == 1:
-                    ms = (h - 2 * gap) * 0.72
-                    hx = rect.left() + dw - ms / 2
-                    painter.setBrush(mc)
-                    painter.setPen(Qt.NoPen)
-                    painter.drawEllipse(QRectF(hx, (h - ms) / 2, ms, ms))
-            if self.model.is_paused:
-                bc = QColor(*modify_hsv(base, v=0.2, s=0.1))
-                painter.setBrush(Qt.NoBrush)
-                painter.setPen(QPen(bc, border))
-                painter.drawRoundedRect(rect, r, r)
+
+                if el > 0 and (self.model.is_paused or (int(time.time()) % 2) == 1):
+                    hand_rect = rect
+
+        if hand_rect is not None:
+            rect = hand_rect
+            ms = max(4.0, (h - 2 * gap) * 0.72)
+            hx = rect.left() + dw - ms / 2
+            painter.setBrush(mc)
+            painter.setPen(Qt.NoPen)
+            painter.drawEllipse(QRectF(hx, (h - ms) / 2, ms, ms))
+
         if self.model.is_paused:
             area = h
             tri = QtGui.QPolygonF(
@@ -326,13 +331,14 @@ class TimerBar(QtWidgets.QWidget):
             painter.setPen(Qt.NoPen)
             painter.setBrush(mc)
             painter.drawPolygon(tri)
+
             font = painter.font()
             font.setPointSizeF(h * 0.5)
             font.setBold(True)
             painter.setFont(font)
             painter.setPen(mc)
             for mark in (self.model.hint_time, self.model.presentation_end, self.model.total_minutes):
-                box = QRectF(mark * mw - (mw * 3 + gap + border), 0, mw * 3, h)
+                box = QRectF(0, 0, mark * mw - (gap + border), h)
                 painter.drawText(box, Qt.AlignRight | Qt.AlignVCenter, str(mark))
 
 
