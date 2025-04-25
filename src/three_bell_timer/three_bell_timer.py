@@ -296,7 +296,7 @@ class TimerBar(QtWidgets.QWidget):
                 presentation_rgb if i < self.model.presentation_end else
                 total_rgb
             )
-            lc = QColor(*interpolate_rgb(base, (255, 255, 255), 0.65), 100)
+            lc = QColor(*interpolate_rgb(base, (255, 255, 255), 0.50), 100)
             dc = QColor(*base)
             bc = QColor(*modify_hsv(base, s=0.3))
             is_last_min = (i + 1) in [self.model.hint_time, self.model.presentation_end, self.model.total_minutes]
@@ -326,7 +326,8 @@ class TimerBar(QtWidgets.QWidget):
         y = (h - marble_height if self.position == "bottom" else 0)
 
         if el > 0 and (self.model.is_paused or (int(time.time()) % 3) != 0):
-            hand_size = max(4.0, (marble_height - 4 * gap) * 0.8)
+            scale = 0.8 if self.model.is_paused else 1.5
+            hand_size = max(4.0, (marble_height - 2 * gap) * scale)
             hx = w * (el / (self.model.total_minutes * 60)) - hand_size / 2 + padding_x
             painter.setBrush(marker_color)
             painter.setPen(QPen(marker_boundary_color, marker_border))
@@ -542,8 +543,8 @@ def main():
         default="all",
         help="which displays to use: 'all', or comma-separated indices (e.g. '0,1')",
     )
-    parser.add_argument("--pos", "-p", choices=["top", "bottom"], default="top", help="window position on screen")
-    parser.add_argument("--pixel-height", "-s", type=int, default=10, help="height of the running timer bar")
+    parser.add_argument("--pos", "-p", choices=["top", "bottom"], default="top", help="window position on screen (default: 'top')")
+    parser.add_argument("--pixel-height", "-s", type=int, default=10, help="height of the running timer bar (default: 10)")
     parser.add_argument("--prompt-times", action="store_true", help="open modal dialog to specify bell times at start")
     parser.add_argument("--generate-desktop", action="store_true", help="output a .desktop file and exit")
     args = parser.parse_args()
