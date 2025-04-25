@@ -269,16 +269,19 @@ class TimerBar(QtWidgets.QWidget):
         painter.setRenderHint(QtGui.QPainter.Antialiasing)
         w, h = self.width(), (self.height() if self.model.is_paused else self.running_height)
         gap, border = 2, 1.3
-        mw = w / self.model.total_minutes
+        marble_width = w / self.model.total_minutes
         r = max(0.0, (h - 2 * gap) / 4)
-        mc = QColor(240, 240, 240)
-        mc.setAlpha(240)
+        mbase = (240, 240, 240)
+        marker_color = QColor(*mbase)
+        marker_color.setAlpha(240)
+        marker_boundary_color = QColor(*modify_hsv(mbase, v=-0.1))
         base0 = (0, 53, 153)
         el = self.model.elapsed()
         hand_rect = None
         for i in range(self.model.total_minutes):
-            x = i * mw
-            rect = QRectF(x + gap, gap, mw - 2 * gap, h - 2 * gap)
+            x = i * marble_width
+            marble_height = h if (i + 1) % 10 == 0 else h * 3/4
+            rect = QRectF(x + gap, gap, marble_width - 2 * gap, marble_height - 2 * gap)
             if i < self.model.hint_time:
                 base = base0
             elif i < self.model.presentation_end:
@@ -317,28 +320,28 @@ class TimerBar(QtWidgets.QWidget):
 
         if hand_rect is not None:
             rect = hand_rect
-            ms = max(4.0, (h - 2 * gap) * 0.72)
-            hx = rect.left() + dw - ms / 2
-            painter.setBrush(mc)
-            painter.setPen(Qt.NoPen)
-            painter.drawEllipse(QRectF(hx, (h - ms) / 2, ms, ms))
+            hand_size = max(4.0, (h - 2 * gap) * 0.55)
+            hx = rect.left() + dw - hand_size / 2
+            painter.setBrush(marker_color)
+            painter.setPen(marker_boundary_color)
+            painter.drawEllipse(QRectF(hx, (h * 3/4 - hand_size) / 2, hand_size, hand_size))
 
         if self.model.is_paused:
-            area = h
+            play_button_size = (h - 2 * gap) * 0.8
             tri = QtGui.QPolygonF(
-                [QPointF(area * 0.3, area * 0.2), QPointF(area * 0.3, area * 0.8), QPointF(area * 0.8, area * 0.5)]
+                [QPointF(play_button_size * 0.3, play_button_size * 0.15), QPointF(play_button_size * 0.3, play_button_size * 0.85), QPointF(play_button_size * 0.8, play_button_size * 0.5)]
             )
-            painter.setPen(Qt.NoPen)
-            painter.setBrush(mc)
+            painter.setBrush(marker_color)
+            painter.setPen(marker_boundary_color)
             painter.drawPolygon(tri)
 
             font = painter.font()
             font.setPointSizeF(h * 0.5)
             font.setBold(True)
             painter.setFont(font)
-            painter.setPen(mc)
+            painter.setPen(marker_color)
             for mark in (self.model.hint_time, self.model.presentation_end, self.model.total_minutes):
-                box = QRectF(0, 0, mark * mw - (gap + border), h)
+                box = QRectF(0, 0, mark * marble_width - (gap + border), h)
                 painter.drawText(box, Qt.AlignRight | Qt.AlignVCenter, str(mark))
 
 
@@ -350,8 +353,9 @@ class PresentationTimerWindow(QtWidgets.QMainWindow):
         self.model = model
         self.display_index = display_index
         self.position = pos
-        self.margin, self.paused_h = 2, 40
-        self.running_h = min(self.paused_h, max(height, 10))
+        self.margin = 2
+        self.paused_h = 40 * 4//3
+        self.running_h = min(self.paused_h, max(height, 10)) * 4//3
         self.timerBar = TimerBar(model, height)
         self.setCentralWidget(self.timerBar)
         self.setWindowFlags(Qt.Tool | Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint)
@@ -530,9 +534,9 @@ def main():
         generate_desktop_file()
         sys.exit(0)
 
-    if args.prompt_times:
-        app = QtWidgets.QApplication(sys.argv)
+    app = QtWidgets.QApplication(sys.argv)
 
+    if args.prompt_times:
         # Open dialog to specify bell times
         dialog = TimeSettingsDialog(
             None, getattr(args, "time1", 10), getattr(args, "time2", 15), getattr(args, "time3", 20)
@@ -559,6 +563,7 @@ def main():
     # Launch application
     QtWidgets.QApplication.setAttribute(QtCore.Qt.AA_EnableHighDpiScaling, True)  # enable highdpi scaling
     QtWidgets.QApplication.setAttribute(QtCore.Qt.AA_UseHighDpiPixmaps, True)  # use highdpi icons
+
     app = PresentationTimerApp(args)
     app.run()
 
