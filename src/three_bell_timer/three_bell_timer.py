@@ -16,6 +16,8 @@ try:
 except ImportError as e:
     __version__ = "(unknown)"
 
+TEN_MINUTE_MARK_HEIGHT_SCALE = 4.0 / 3.0
+
 
 def clip01(v: float) -> float:
     return max(0.0, min(1.0, v))
@@ -223,17 +225,17 @@ class TimerModel(QtCore.QObject):
 
     def __init__(self, t1: int, t2: int, t3: int):
         super().__init__()
-        self.hint_time = t1
-        self.presentation_end = max(t1, t2)
-        self.total_minutes = max(self.presentation_end, t3)
-        self._accum = 0.0
-        self._start = time.time()
-        self._paused = True
+        self.hint_time: int = t1  # min
+        self.presentation_end: int = max(t1, t2)  # min
+        self.total_minutes: int = max(self.presentation_end, t3)  # min
+        self._accum: float = 0.0  # sec
+        self._start: float = time.time()  # sec
+        self._paused: bool = True
 
-    def tick(self):
+    def tick(self) -> None:
         self.timeUpdated.emit()
 
-    def toggle_pause(self):
+    def toggle_pause(self) -> None:
         if self._paused:
             self._start = time.time()
         else:
@@ -241,7 +243,7 @@ class TimerModel(QtCore.QObject):
         self._paused = not self._paused
         self.stateChanged.emit()
 
-    def reset(self):
+    def reset(self) -> None:
         self._accum = 0.0
         self._start = time.time()
         self._paused = True
@@ -257,38 +259,42 @@ class TimerModel(QtCore.QObject):
 
 # ---- TimerBar (View) ----
 class TimerBar(QtWidgets.QWidget):
-    def __init__(self, model: TimerModel, running_height: int = 10):
+    def __init__(self, model: TimerModel, running_height: int, position: str):
         super().__init__()
         self.model = model
-        self.running_height = running_height
+        self.running_height: int = running_height
+        self.position: str = position
         model.timeUpdated.connect(self.update)
         model.stateChanged.connect(self.update)
 
     def paintEvent(self, event):
         painter = QtGui.QPainter(self)
         painter.setRenderHint(QtGui.QPainter.Antialiasing)
-        w, h = self.width(), (self.height() if self.model.is_paused else self.running_height)
-        gap, border = 2, 1.3
+        padding_x = 4
+        gap = 2
+        border = 1.3
+        w, h = self.width() - padding_x * 2, (self.height() if self.model.is_paused else self.running_height)
         marble_width = w / self.model.total_minutes
-        r = max(0.0, (h - 2 * gap) / 4)
+        rr_size = max(0.0, (h - 2 * gap) / 4)
         mbase = (240, 240, 240)
         marker_color = QColor(*mbase)
         marker_color.setAlpha(240)
         marker_boundary_color = QColor(*modify_hsv(mbase, v=-0.1))
         base0 = (0, 53, 153)
         el = self.model.elapsed()
-        hand_rect = None
+        el = min(el, self.model.total_minutes * 60.0)
         for i in range(self.model.total_minutes):
-            x = i * marble_width
-            marble_height = h if (i + 1) % 10 == 0 else h * 3/4
-            rect = QRectF(x + gap, gap, marble_width - 2 * gap, marble_height - 2 * gap)
+            x = i * marble_width + padding_x
+            marble_height = h if (i + 1) % 10 == 0 else int(h / TEN_MINUTE_MARK_HEIGHT_SCALE)
+            y = h - marble_height if self.position == "bottom" else 0
+            rect = QRectF(x + gap, y + gap, marble_width - 2 * gap, marble_height - 2 * gap)
             if i < self.model.hint_time:
                 base = base0
             elif i < self.model.presentation_end:
                 base = (0, 125, 145)
             else:
                 base = (229, 153, 82)
-            lc = QColor(*base)
+            lc = QColor(*interpolate_rgb(base, (255, 255, 255), 0.7))
             lc.setAlpha(80)
             dc = QColor(*base)
             bc = QColor(*modify_hsv(base, s=0.3))
@@ -297,51 +303,56 @@ class TimerBar(QtWidgets.QWidget):
             if el >= e_sec:
                 painter.setPen(QPen(bc, border))
                 painter.setBrush(dc)
-                painter.drawRoundedRect(rect, r, r)
+                painter.drawRoundedRect(rect, rr_size, rr_size)
             elif el < s_sec:
                 painter.setPen(QPen(bc, border))
                 painter.setBrush(lc)
-                painter.drawRoundedRect(rect, r, r)
+                painter.drawRoundedRect(rect, rr_size, rr_size)
             else:
                 frac = (el - s_sec) / 60.0
                 painter.setPen(QPen(bc, 1.3))
                 painter.setBrush(lc)
-                painter.drawRoundedRect(rect, r, r)
+                painter.drawRoundedRect(rect, rr_size, rr_size)
                 dw = rect.width() * frac
                 clip = QRectF(rect.left(), rect.top(), dw, rect.height())
                 painter.save()
                 painter.setClipRect(clip)
                 painter.setBrush(dc)
-                painter.drawRoundedRect(rect, r, r)
+                painter.drawRoundedRect(rect, rr_size, rr_size)
                 painter.restore()
 
-                if el > 0 and (self.model.is_paused or (int(time.time()) % 2) == 1):
-                    hand_rect = rect
+        marble_height = int(h / TEN_MINUTE_MARK_HEIGHT_SCALE)
+        y = (h - marble_height if self.position == "bottom" else 0)
 
-        if hand_rect is not None:
-            rect = hand_rect
-            hand_size = max(4.0, (h - 2 * gap) * 0.55)
-            hx = rect.left() + dw - hand_size / 2
+        if el > 0 and (self.model.is_paused or (int(time.time()) % 3) != 0):
+            hand_size = max(4.0, (marble_height - 4 * gap) * 0.8)
+            hx = w * (el / (self.model.total_minutes * 60)) - hand_size / 2 + padding_x
             painter.setBrush(marker_color)
             painter.setPen(marker_boundary_color)
-            painter.drawEllipse(QRectF(hx, (h * 3/4 - hand_size) / 2, hand_size, hand_size))
+            painter.drawEllipse(QRectF(hx, y + (marble_height - hand_size) / 2, hand_size, hand_size))
 
         if self.model.is_paused:
-            play_button_size = (h - 2 * gap) * 0.8
+            s = marble_height - 2 * gap
+            px = padding_x + gap + border
+            py = y + gap
             tri = QtGui.QPolygonF(
-                [QPointF(play_button_size * 0.3, play_button_size * 0.15), QPointF(play_button_size * 0.3, play_button_size * 0.85), QPointF(play_button_size * 0.8, play_button_size * 0.5)]
+                [
+                    QPointF(px + s * 0.3, py + s * 0.15),
+                    QPointF(px + s * 0.3, py + s * 0.85),
+                    QPointF(px + s * 0.8, py + s * 0.5),
+                ]
             )
             painter.setBrush(marker_color)
             painter.setPen(marker_boundary_color)
             painter.drawPolygon(tri)
 
             font = painter.font()
-            font.setPointSizeF(h * 0.5)
+            font.setPointSizeF(s * 0.7)
             font.setBold(True)
             painter.setFont(font)
             painter.setPen(marker_color)
             for mark in (self.model.hint_time, self.model.presentation_end, self.model.total_minutes):
-                box = QRectF(0, 0, mark * marble_width - (gap + border), h)
+                box = QRectF(padding_x, y + gap, mark * marble_width - (gap + border) - padding_x, s)
                 painter.drawText(box, Qt.AlignRight | Qt.AlignVCenter, str(mark))
 
 
@@ -354,9 +365,9 @@ class PresentationTimerWindow(QtWidgets.QMainWindow):
         self.display_index = display_index
         self.position = pos
         self.margin = 2
-        self.paused_h = 40 * 4//3
-        self.running_h = min(self.paused_h, max(height, 10)) * 4//3
-        self.timerBar = TimerBar(model, height)
+        self.paused_h = int(40 * TEN_MINUTE_MARK_HEIGHT_SCALE)
+        self.running_h = int(min(self.paused_h, max(height, 10)) * TEN_MINUTE_MARK_HEIGHT_SCALE)
+        self.timerBar = TimerBar(model, height, self.position)
         self.setCentralWidget(self.timerBar)
         self.setWindowFlags(Qt.Tool | Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint)
         self.setAttribute(Qt.WA_TranslucentBackground)
@@ -372,6 +383,7 @@ class PresentationTimerWindow(QtWidgets.QMainWindow):
         w = avail.width() - 2 * self.margin
         y = avail.top() + self.margin if self.position == "top" else avail.bottom() - h - self.margin
         self.setGeometry(x, y, w, h)
+        self.timerBar.position = self.position
 
     def mousePressEvent(self, e):
         if e.button() == Qt.LeftButton and self.model.is_paused and e.pos().x() < self.paused_h:
