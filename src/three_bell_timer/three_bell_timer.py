@@ -276,7 +276,7 @@ class TimerBar(QtWidgets.QWidget):
         marker_border = 1.8
         marker_rgba = (240, 240, 240, 240)
         hint_rgb = (0, 53, 153)
-        presentation_rgb = (0, 125, 145)
+        presentation_rgb = (0, 153, 79)
         total_rgb = (229, 153, 82)
 
         w, h = self.width() - padding_x * 2, (self.height() if self.model.is_paused else self.running_height)
@@ -299,19 +299,19 @@ class TimerBar(QtWidgets.QWidget):
             lc = QColor(*interpolate_rgb(base, (255, 255, 255), 0.65), 100)
             dc = QColor(*base)
             bc = QColor(*modify_hsv(base, s=0.3))
+            is_last_min = (i + 1) in [self.model.hint_time, self.model.presentation_end, self.model.total_minutes]
+            b = border * 1.5 if self.model.is_paused and is_last_min else border
 
             s_sec, e_sec = i * 60, (i + 1) * 60
+            painter.setPen(QPen(bc, b))
             if el >= e_sec:
-                painter.setPen(QPen(bc, border))
                 painter.setBrush(dc)
                 painter.drawRoundedRect(rect, rr_size, rr_size)
             elif el < s_sec:
-                painter.setPen(QPen(bc, border))
                 painter.setBrush(lc)
                 painter.drawRoundedRect(rect, rr_size, rr_size)
             else:
                 frac = (el - s_sec) / 60.0
-                painter.setPen(QPen(bc, 1.3))
                 painter.setBrush(lc)
                 painter.drawRoundedRect(rect, rr_size, rr_size)
                 dw = rect.width() * frac
