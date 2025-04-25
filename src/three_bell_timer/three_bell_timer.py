@@ -407,11 +407,8 @@ class PresentationTimerWindow(QtWidgets.QMainWindow):
 # ---- Manager / Application ----
 class PresentationTimerApp:
     def __init__(self, args):
-        # Initialize QApplication
-        self.app = QtWidgets.QApplication(sys.argv)
-        icon_path = find_icon_file("icon.ico")
-        if icon_path:
-            self.app.setWindowIcon(QIcon(icon_path))
+        # Load QApplication
+        self.app = QtWidgets.QApplication.instance()
 
         # TimerModel remains the same
         self.model = TimerModel(args.time1, args.time2, args.time3)
@@ -535,6 +532,9 @@ def main():
         sys.exit(0)
 
     app = QtWidgets.QApplication(sys.argv)
+    icon_path = find_icon_file("icon.ico")
+    if icon_path:
+        app.setWindowIcon(QIcon(icon_path))
 
     if args.prompt_times:
         # Open dialog to specify bell times
