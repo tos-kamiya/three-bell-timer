@@ -295,7 +295,7 @@ class TimerBar(QtWidgets.QWidget):
             else:
                 base = (229, 153, 82)
             lc = QColor(*interpolate_rgb(base, (255, 255, 255), 0.7))
-            lc.setAlpha(80)
+            lc.setAlpha(100)
             dc = QColor(*base)
             bc = QColor(*modify_hsv(base, s=0.3))
 
@@ -493,8 +493,8 @@ class PresentationTimerApp:
     def update_time_settings(self):
         cursor_pos = QtGui.QCursor.pos()
 
-        # Create the dialog instance (without parent for independent positioning)
-        dialog = TimeSettingsDialog(None, self.model.hint_time, self.model.presentation_end, self.model.total_minutes)
+        parent_window = self.windows[0] if self.windows else None
+        dialog = TimeSettingsDialog(parent_window, self.model.hint_time, self.model.presentation_end, self.model.total_minutes)
 
         # Get the estimated size of the dialog
         # Calling adjustSize() or layout().activate() might give a more accurate size hint
@@ -572,9 +572,9 @@ def main():
         else:
             args.time1, args.time2, args.time3 = 10, 15, 20
 
-    # Launch application
-    QtWidgets.QApplication.setAttribute(QtCore.Qt.AA_EnableHighDpiScaling, True)  # enable highdpi scaling
-    QtWidgets.QApplication.setAttribute(QtCore.Qt.AA_UseHighDpiPixmaps, True)  # use highdpi icons
+    # # Launch application
+    # QtWidgets.QApplication.setAttribute(QtCore.Qt.AA_EnableHighDpiScaling, True)  # enable highdpi scaling
+    # QtWidgets.QApplication.setAttribute(QtCore.Qt.AA_UseHighDpiPixmaps, True)  # use highdpi icons
 
     app = PresentationTimerApp(args)
     app.run()
