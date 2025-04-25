@@ -64,6 +64,7 @@ Alternatively, install via pip:
 
 ```bash
 git clone https://github.com/tos-kamiya/three-bell-timer
+cd three-bell-timer
 pip install .
 ```
 
