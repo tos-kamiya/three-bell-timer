@@ -272,15 +272,18 @@ class TimerBar(QtWidgets.QWidget):
         painter.setRenderHint(QtGui.QPainter.Antialiasing)
         padding_x = 4
         gap = 2
-        border = 1.3
+        border = 1.1
+        marker_border = 1.8
+        marker_rgba = (240, 240, 240, 240)
+        hint_rgb = (0, 53, 153)
+        presentation_rgb = (0, 125, 145)
+        total_rgb = (229, 153, 82)
+
         w, h = self.width() - padding_x * 2, (self.height() if self.model.is_paused else self.running_height)
         marble_width = w / self.model.total_minutes
-        rr_size = max(0.0, (h - 2 * gap) / 4)
-        mbase = (240, 240, 240)
-        marker_color = QColor(*mbase)
-        marker_color.setAlpha(240)
-        marker_boundary_color = QColor(*modify_hsv(mbase, v=-0.1))
-        base0 = (0, 53, 153)
+        rr_size = max(0.0, (h - 2 * gap) / 5)
+        marker_color = QColor(*marker_rgba)
+        marker_boundary_color = QColor(*modify_hsv(marker_rgba[:3], v=-0.3), 120)
         el = self.model.elapsed()
         el = min(el, self.model.total_minutes * 60.0)
         for i in range(self.model.total_minutes):
@@ -288,14 +291,12 @@ class TimerBar(QtWidgets.QWidget):
             marble_height = h if (i + 1) % 10 == 0 else int(h / TEN_MINUTE_MARK_HEIGHT_SCALE)
             y = h - marble_height if self.position == "bottom" else 0
             rect = QRectF(x + gap, y + gap, marble_width - 2 * gap, marble_height - 2 * gap)
-            if i < self.model.hint_time:
-                base = base0
-            elif i < self.model.presentation_end:
-                base = (0, 125, 145)
-            else:
-                base = (229, 153, 82)
-            lc = QColor(*interpolate_rgb(base, (255, 255, 255), 0.7))
-            lc.setAlpha(100)
+            base = (
+                hint_rgb if i < self.model.hint_time else
+                presentation_rgb if i < self.model.presentation_end else
+                total_rgb
+            )
+            lc = QColor(*interpolate_rgb(base, (255, 255, 255), 0.65), 100)
             dc = QColor(*base)
             bc = QColor(*modify_hsv(base, s=0.3))
 
@@ -328,12 +329,12 @@ class TimerBar(QtWidgets.QWidget):
             hand_size = max(4.0, (marble_height - 4 * gap) * 0.8)
             hx = w * (el / (self.model.total_minutes * 60)) - hand_size / 2 + padding_x
             painter.setBrush(marker_color)
-            painter.setPen(marker_boundary_color)
+            painter.setPen(QPen(marker_boundary_color, marker_border))
             painter.drawEllipse(QRectF(hx, y + (marble_height - hand_size) / 2, hand_size, hand_size))
 
         if self.model.is_paused:
             s = marble_height - 2 * gap
-            px = padding_x + gap + border
+            px = padding_x + gap + marker_border
             py = y + gap
             tri = QtGui.QPolygonF(
                 [
@@ -343,16 +344,24 @@ class TimerBar(QtWidgets.QWidget):
                 ]
             )
             painter.setBrush(marker_color)
-            painter.setPen(marker_boundary_color)
+            painter.setPen(QPen(marker_boundary_color, marker_border))
             painter.drawPolygon(tri)
 
             font = painter.font()
             font.setPointSizeF(s * 0.7)
             font.setBold(True)
             painter.setFont(font)
-            painter.setPen(marker_color)
-            for mark in (self.model.hint_time, self.model.presentation_end, self.model.total_minutes):
-                box = QRectF(padding_x, y + gap, mark * marble_width - (gap + border) - padding_x, s)
+            for mark, shadow_rgb in zip(
+                    [self.model.hint_time, self.model.presentation_end, self.model.total_minutes],
+                    [hint_rgb, presentation_rgb, total_rgb],
+                ):
+                painter.setPen(QColor(*shadow_rgb, 80))
+                box = QRectF(padding_x - marker_border, y + gap, mark * marble_width - (gap + marker_border) - padding_x, s)
+                painter.drawText(box, Qt.AlignRight | Qt.AlignVCenter, str(mark))
+                box = QRectF(padding_x + marker_border, y + gap, mark * marble_width - (gap + marker_border) - padding_x, s)
+                painter.drawText(box, Qt.AlignRight | Qt.AlignVCenter, str(mark))
+                painter.setPen(marker_color)
+                box = QRectF(padding_x, y + gap, mark * marble_width - (gap + marker_border) - padding_x, s)
                 painter.drawText(box, Qt.AlignRight | Qt.AlignVCenter, str(mark))
 
 
@@ -572,9 +581,9 @@ def main():
         else:
             args.time1, args.time2, args.time3 = 10, 15, 20
 
-    # # Launch application
-    # QtWidgets.QApplication.setAttribute(QtCore.Qt.AA_EnableHighDpiScaling, True)  # enable highdpi scaling
-    # QtWidgets.QApplication.setAttribute(QtCore.Qt.AA_UseHighDpiPixmaps, True)  # use highdpi icons
+    # Launch application
+    QtWidgets.QApplication.setAttribute(QtCore.Qt.AA_EnableHighDpiScaling, True)  # enable highdpi scaling
+    QtWidgets.QApplication.setAttribute(QtCore.Qt.AA_UseHighDpiPixmaps, True)  # use highdpi icons
 
     app = PresentationTimerApp(args)
     app.run()
