@@ -16,7 +16,7 @@ try:
 except ImportError as e:
     __version__ = "(unknown)"
 
-TEN_MINUTE_MARK_HEIGHT_SCALE = 4.0 / 3.0
+TEN_MINUTE_MARK_HEIGHT_SCALE = 1.25
 
 
 def clip01(v: float) -> float:
@@ -275,15 +275,17 @@ class TimerBar(QtWidgets.QWidget):
         border = 1.1
         marker_border = 1.8
         marker_rgba = (240, 240, 240, 240)
-        hint_rgb = (0, 53, 153)
-        presentation_rgb = (0, 153, 79)
+        marker_dark_rgba = (0, 0, 0, 80)
+        marker_boundary_rgba = (69, 71, 76, 240)
+        hint_rgb = (13, 14, 15)
+        presentation_rgb = (0, 117, 153)
         total_rgb = (229, 153, 82)
 
         w, h = self.width() - padding_x * 2, (self.height() if self.model.is_paused else self.running_height)
         marble_width = w / self.model.total_minutes
         rr_size = max(0.0, (h - 2 * gap) / 5)
         marker_color = QColor(*marker_rgba)
-        marker_boundary_color = QColor(*modify_hsv(marker_rgba[:3], v=-0.3), 120)
+        marker_boundary_color = QColor(*marker_boundary_rgba)
         el = self.model.elapsed()
         el = min(el, self.model.total_minutes * 60.0)
         for i in range(self.model.total_minutes):
@@ -296,41 +298,50 @@ class TimerBar(QtWidgets.QWidget):
                 presentation_rgb if i < self.model.presentation_end else
                 total_rgb
             )
-            lc = QColor(*interpolate_rgb(base, (255, 255, 255), 0.50), 100)
-            dc = QColor(*base)
-            bc = QColor(*modify_hsv(base, s=0.3))
+            light_fill_color = QColor(*interpolate_rgb(base, (255, 255, 255), 0.70), 150)
+            dark_fill_color = QColor(*base, 220)
+            dark_pen_color = QColor(*base)
+            light_pen_color = QColor(*interpolate_rgb(base, (255, 255, 255), 0.70))
             is_last_min = (i + 1) in [self.model.hint_time, self.model.presentation_end, self.model.total_minutes]
             b = border * 1.5 if self.model.is_paused and is_last_min else border
 
             s_sec, e_sec = i * 60, (i + 1) * 60
-            painter.setPen(QPen(bc, b))
             if el >= e_sec:
-                painter.setBrush(dc)
+                painter.setPen(QPen(light_pen_color, b))
+                painter.setBrush(dark_fill_color)
                 painter.drawRoundedRect(rect, rr_size, rr_size)
             elif el < s_sec:
-                painter.setBrush(lc)
+                painter.setPen(QPen(dark_pen_color, b))
+                painter.setBrush(light_fill_color)
                 painter.drawRoundedRect(rect, rr_size, rr_size)
             else:
                 frac = (el - s_sec) / 60.0
-                painter.setBrush(lc)
+                painter.setPen(QPen(dark_pen_color, b))
+                painter.setBrush(light_fill_color)
                 painter.drawRoundedRect(rect, rr_size, rr_size)
+
                 dw = rect.width() * frac
-                clip = QRectF(rect.left(), rect.top(), dw, rect.height())
+                clip = QRectF(rect.left(), 0, dw, self.height())
                 painter.save()
                 painter.setClipRect(clip)
-                painter.setBrush(dc)
+                painter.setPen(QPen(light_pen_color, b))
+                painter.setBrush(dark_fill_color)
                 painter.drawRoundedRect(rect, rr_size, rr_size)
                 painter.restore()
 
         marble_height = int(h / TEN_MINUTE_MARK_HEIGHT_SCALE)
         y = (h - marble_height if self.position == "bottom" else 0)
 
-        if el > 0 and (self.model.is_paused or (int(time.time()) % 3) != 0):
-            scale = 0.8 if self.model.is_paused else 1.5
+        if el > 0:
+            scale = 0.8 if self.model.is_paused else 1.7
             hand_size = max(4.0, (marble_height - 2 * gap) * scale)
             hx = w * (el / (self.model.total_minutes * 60)) - hand_size / 2 + padding_x
-            painter.setBrush(marker_color)
-            painter.setPen(QPen(marker_boundary_color, marker_border))
+            if self.model.is_paused or (int(time.time()) % 3) != 0:
+                painter.setBrush(marker_color)
+                painter.setPen(QPen(marker_boundary_color, marker_border))
+            else:
+                painter.setBrush(QColor(*marker_dark_rgba))
+                painter.setPen(Qt.NoPen)
             painter.drawEllipse(QRectF(hx, y + (marble_height - hand_size) / 2, hand_size, hand_size))
 
         if self.model.is_paused:
@@ -544,7 +555,7 @@ def main():
         help="which displays to use: 'all', or comma-separated indices (e.g. '0,1')",
     )
     parser.add_argument("--pos", "-p", choices=["top", "bottom"], default="top", help="window position on screen (default: 'top')")
-    parser.add_argument("--pixel-height", "-s", type=int, default=10, help="height of the running timer bar (default: 10)")
+    parser.add_argument("--pixel-height", "-s", type=int, default=12, help="height of the running timer bar (default: 12)")
     parser.add_argument("--prompt-times", action="store_true", help="open modal dialog to specify bell times at start")
     parser.add_argument("--generate-desktop", action="store_true", help="output a .desktop file and exit")
     args = parser.parse_args()
