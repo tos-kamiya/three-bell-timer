@@ -10,7 +10,7 @@ try:
     from .__about__ import __version__
 except ImportError as e:
     __version__ = "(unknown)"
-from .utils import interpolate_rgb, find_icon_file, calculate_window_position
+from .utils import interpolate_rgb, find_icon_file, calculate_window_position, paint_text_with_background
 
 TEN_MINUTE_MARK_HEIGHT_SCALE = 1.25
 MARGIN_X = 4
@@ -196,30 +196,22 @@ class TimerBar(QtWidgets.QWidget):
             font.setPointSizeF(s * 0.7)
             font.setBold(True)
             painter.setFont(font)
+            s = marble_height - 2 * PADDING - MARKER_BORDER_THICKNESS * 2
             for mark, shadow_rgb in zip(
                 [self.model.hint_time, self.model.presentation_end, self.model.total_minutes],
                 [HINT_RGB, PRESENTATION_RGB, TOTAL_RGB],
             ):
-                painter.setPen(QColor(*shadow_rgb, 80))
-                box = QRectF(
-                    MARGIN_X - MARKER_BORDER_THICKNESS,
-                    y + PADDING,
-                    mark * marble_width - (PADDING + MARKER_BORDER_THICKNESS) - MARGIN_X,
-                    s,
-                )
-                painter.drawText(box, Qt.AlignRight | Qt.AlignVCenter, str(mark))
-                box = QRectF(
-                    MARGIN_X + MARKER_BORDER_THICKNESS,
-                    y + PADDING,
-                    mark * marble_width - (PADDING + MARKER_BORDER_THICKNESS) - MARGIN_X,
-                    s,
-                )
-                painter.drawText(box, Qt.AlignRight | Qt.AlignVCenter, str(mark))
-                painter.setPen(marker_color)
                 box = QRectF(
                     MARGIN_X, y + PADDING, mark * marble_width - (PADDING + MARKER_BORDER_THICKNESS) - MARGIN_X, s
                 )
-                painter.drawText(box, Qt.AlignRight | Qt.AlignVCenter, str(mark))
+                shadow_rgba = shadow_rgb + (80,)
+                paint_text_with_background(
+                    painter, box, str(mark), MARKER_RGBA, shadow_rgba,
+                    text_align="right",
+                    font_size = int(box.height() * 0.6),
+                    corner_radius=rr_size,
+                    margin=rr_size,
+                )
 
 
 # ---- Presentation Window ----

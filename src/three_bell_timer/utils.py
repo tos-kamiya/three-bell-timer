@@ -6,7 +6,8 @@ import sys
 from typing import Optional, Tuple
 
 from PyQt5 import QtWidgets
-from PyQt5.QtCore import QPoint, QSize
+from PyQt5.QtCore import QPoint, QPointF, QRect, QRectF, QSize, Qt
+from PyQt5.QtGui import QPainter, QColor, QFontMetrics, QBrush
 
 
 def clip01(v: float) -> float:
@@ -170,3 +171,54 @@ def calculate_window_position(cursor_pos: QPoint, window_size: QSize, margin: in
         target_y = screen_top_limit
 
     return QPoint(target_x, target_y)
+
+
+def paint_text_with_background(
+    painter: QPainter,
+    rect: QRect,
+    text: str,
+    text_rgba: Tuple[int, int, int, int],
+    background_rgba: Tuple[int, int, int, int],
+    font_name: Optional[str] = None,
+    font_size: Optional[int] = None,
+    text_align: Optional[str] = "left",
+    margin: int = 8,
+    corner_radius: int = 8,
+):
+    font = painter.font()
+    if font_name is not None:
+        font.setFamily(font_name)
+    if font_size is not None:
+        font.setPointSize(font_size)
+    painter.setFont(font)
+
+    metrics = QFontMetrics(font)
+
+    text_width = metrics.horizontalAdvance(text)
+    text_height = metrics.height()  # ascent + descent
+
+    aligned_rect = QRectF(rect)
+    if text_align == "center":
+        x = aligned_rect.center().x() - text_width / 2
+    elif text_align == "right":
+        x = aligned_rect.right() - text_width
+    else:  # "left" or default
+        x = aligned_rect.left()
+
+    y = aligned_rect.center().y() + metrics.ascent() / 2
+
+    bg_rect = QRectF(
+        x - margin,
+        y - metrics.ascent() - margin,
+        text_width + margin * 2,
+        text_height + margin * 2,
+    )
+
+    background_color = QColor(*background_rgba)
+    painter.setBrush(QBrush(background_color))
+    painter.setPen(Qt.NoPen)
+    painter.drawRoundedRect(bg_rect, corner_radius, corner_radius)
+
+    text_color = QColor(*text_rgba)
+    painter.setPen(text_color)
+    painter.drawText(QPointF(x, y), text)
