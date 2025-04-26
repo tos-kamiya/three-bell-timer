@@ -1,185 +1,28 @@
-import argparse
-import colorsys
-import os
-import platform
-import shutil
 import sys
 import time
-from typing import List, Optional, Tuple
+from typing import List, Optional
 
 from PyQt5 import QtCore, QtGui, QtWidgets
-from PyQt5.QtCore import QPoint, QPointF, QRectF, QSize, Qt
-from PyQt5.QtGui import QColor, QIcon, QPen
+from PyQt5.QtCore import QPointF, QRectF, Qt
+from PyQt5.QtGui import QColor, QPen
 
 try:
     from .__about__ import __version__
 except ImportError as e:
     __version__ = "(unknown)"
+from .utils import interpolate_rgb, find_icon_file, calculate_window_position
 
 TEN_MINUTE_MARK_HEIGHT_SCALE = 1.25
-
-
-def clip01(v: float) -> float:
-    return max(0.0, min(1.0, v))
-
-
-def clip255(v: float) -> int:
-    return max(0, min(255, int(v)))
-
-
-def modify_hsv(rgb: Tuple[int, int, int], h: float = 0.0, s: float = 0.0, v: float = 0.0) -> Tuple[int, int, int]:
-    r, g, b = rgb
-    rgb01 = (r / 255, g / 255, b / 255)
-    h0, s0, v0 = colorsys.rgb_to_hsv(*rgb01)
-    new_h = (h0 + h) % 1.0
-    new_s = clip01(s0 + s)
-    new_v = clip01(v0 + v)
-    r2, g2, b2 = colorsys.hsv_to_rgb(new_h, new_s, new_v)
-    return clip255(r2 * 255), clip255(g2 * 255), clip255(b2 * 255)
-
-
-def interpolate_rgb(
-    color1: Tuple[int, int, int], color2: Optional[Tuple[int, int, int]] = None, ratio: float = 1.0
-) -> Tuple[int, int, int]:
-    if color2 is None:
-        color2 = (0, 0, 0)
-    r1, g1, b1 = color1
-    r2, g2, b2 = color2
-    r = clip255((1.0 - ratio) * r2 + ratio * r1)
-    g = clip255((1.0 - ratio) * g2 + ratio * g1)
-    b = clip255((1.0 - ratio) * b2 + ratio * b1)
-    return (r, g, b)
-
-
-def generate_desktop_file():
-    if platform.system() != "Linux":
-        sys.exit("Error: .desktop file is valid only on Linux system.")
-
-    exec_path = shutil.which("3bt") or os.path.abspath(sys.argv[0])
-
-    icon_path = find_icon_file("icon256.png") or ""
-
-    desktop_file_content = f"""[Desktop Entry]
-Name=Three-bell timer
-Comment=A lightweight timer designed for presentations.
-Exec={exec_path}
-Icon={icon_path}
-Terminal=false
-Type=Application
-Categories=Utility;
-"""
-    dest_file = os.path.join(os.getcwd(), "3bt.desktop")
-
-    try:
-        with open(dest_file, "w") as f:
-            f.write(desktop_file_content)
-        print(f".desktop file generated at {dest_file}", file=sys.stderr)
-        print("To integrate with your system, copy this file to ~/.local/share/applications/", file=sys.stderr)
-        print("For example:", file=sys.stderr)
-        print("  cp 3bt.desktop ~/.local/share/applications/", file=sys.stderr)
-    except Exception as e:
-        sys.exit(f"Error: Failed to generate .desktop file: {e}")
-
-
-def find_icon_file(filename):
-    base_dirs = []
-    pkg_data_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "data"))
-    base_dirs.append(pkg_data_dir)
-    try:
-        pyinstaller_data_dir = sys._MEIPASS
-        base_dirs.append(pyinstaller_data_dir)
-    except Exception:
-        pass
-    base_dirs.append(os.path.abspath("."))
-
-    for b in base_dirs:
-        icon_path = os.path.join(b, filename)
-        if os.path.exists(icon_path):
-            return icon_path
-    return None
-
-
-def calculate_window_position(cursor_pos: QPoint, window_size: QSize, margin: int = 10) -> QPoint:
-    """Calculates an appropriate top-left position for a window near the cursor.
-
-    This function attempts to position a window close to the provided cursor
-    position (initially trying bottom-right). It ensures the entire window
-    remains visible within the available geometry of the screen containing
-    the cursor, respecting a minimum margin from the screen edges.
-
-    Args:
-        cursor_pos: The current global position of the mouse cursor (QtGui.QCursor.pos()).
-        window_size: The size (QSize) of the window to be positioned.
-                     Using dialog.sizeHint() before showing is a common way to get an estimate.
-        margin: The minimum space (in pixels) to keep between the window and the screen edges.
-
-    Returns:
-        The calculated top-left QPoint for the window. Returns a default position
-        (e.g., top-left corner with margin) if screen detection fails.
-    """
-    # --- Determine the screen containing the cursor ---
-    screen = None
-    # Use QApplication.screenAt() if available (PyQt >= 5.14 recommended)
-    if hasattr(QtWidgets.QApplication, "screenAt"):
-        screen = QtWidgets.QApplication.screenAt(cursor_pos)
-
-    # Fallback for older PyQt versions or if screenAt fails
-    if not screen:
-        screen_number = QtWidgets.QApplication.desktop().screenNumber(cursor_pos)
-        if screen_number != -1:
-            try:
-                screen = QtWidgets.QApplication.screens()[screen_number]
-            except IndexError:
-                print(f"Warning: Screen number {screen_number} out of range.", file=sys.stderr)
-                screen = None  # Ensure screen is None if index is bad
-
-    # Ultimate fallback to the primary screen if no screen could be determined
-    if not screen:
-        screen = QtWidgets.QApplication.primaryScreen()
-
-    # If still no screen (highly unlikely unless in a very unusual setup), return a default
-    if not screen:
-        print("Error: Could not determine any screen for positioning.", file=sys.stderr)
-        return QPoint(margin, margin)  # Default to top-left corner
-
-    screen_geometry = screen.availableGeometry()  # Use availableGeometry to avoid docks/taskbars
-
-    # --- Calculate initial target position ---
-    # Start by trying to place the window bottom-right of the cursor
-    target_x = cursor_pos.x() + margin // 2  # Small offset from cursor
-    target_y = cursor_pos.y() + margin // 2
-
-    # --- Adjust position to fit within screen bounds ---
-
-    # Adjust horizontally
-    screen_right_limit = screen_geometry.right() - margin
-    screen_left_limit = screen_geometry.left() + margin
-
-    if target_x + window_size.width() > screen_right_limit:
-        # If it overflows the right edge, try placing it to the left of the cursor
-        target_x = cursor_pos.x() - window_size.width() - margin // 2
-        # If it now overflows the left edge, clamp it to the left edge
-        if target_x < screen_left_limit:
-            target_x = screen_left_limit
-    elif target_x < screen_left_limit:
-        # If the initial position was already too far left, clamp it to the left edge
-        target_x = screen_left_limit
-
-    # Adjust vertically
-    screen_bottom_limit = screen_geometry.bottom() - margin
-    screen_top_limit = screen_geometry.top() + margin
-
-    if target_y + window_size.height() > screen_bottom_limit:
-        # If it overflows the bottom edge, try placing it above the cursor
-        target_y = cursor_pos.y() - window_size.height() - margin // 2
-        # If it now overflows the top edge, clamp it to the top edge
-        if target_y < screen_top_limit:
-            target_y = screen_top_limit
-    elif target_y < screen_top_limit:
-        # If the initial position was already too far up, clamp it to the top edge
-        target_y = screen_top_limit
-
-    return QPoint(target_x, target_y)
+MARGIN_X = 4
+PADDING = 2
+BORDER_THICKNESS = 1.1
+MARKER_BORDER_THICKNESS = 1.8
+MARKER_RGBA = (240, 240, 240, 240)
+MARKER_DARK_RGBA = (0, 0, 0, 80)
+MARKER_BOUNDARY_RGBA = (69, 71, 76, 240)
+HINT_RGB = (13, 14, 15)
+PRESENTATION_RGB = (0, 117, 153)
+TOTAL_RGB = (229, 153, 82)
 
 
 # ---- Time Settings Dialog ----
@@ -270,40 +113,30 @@ class TimerBar(QtWidgets.QWidget):
     def paintEvent(self, event):
         painter = QtGui.QPainter(self)
         painter.setRenderHint(QtGui.QPainter.Antialiasing)
-        padding_x = 4
-        gap = 2
-        border = 1.1
-        marker_border = 1.8
-        marker_rgba = (240, 240, 240, 240)
-        marker_dark_rgba = (0, 0, 0, 80)
-        marker_boundary_rgba = (69, 71, 76, 240)
-        hint_rgb = (13, 14, 15)
-        presentation_rgb = (0, 117, 153)
-        total_rgb = (229, 153, 82)
 
-        w, h = self.width() - padding_x * 2, (self.height() if self.model.is_paused else self.running_height)
+        w, h = self.width() - MARGIN_X * 2, (self.height() if self.model.is_paused else self.running_height)
         marble_width = w / self.model.total_minutes
-        rr_size = max(0.0, (h - 2 * gap) / 5)
-        marker_color = QColor(*marker_rgba)
-        marker_boundary_color = QColor(*marker_boundary_rgba)
+        rr_size = max(0.0, (h - 2 * PADDING) / 5)
+        marker_color = QColor(*MARKER_RGBA)
+        marker_boundary_color = QColor(*MARKER_BOUNDARY_RGBA)
         el = self.model.elapsed()
         el = min(el, self.model.total_minutes * 60.0)
         for i in range(self.model.total_minutes):
-            x = i * marble_width + padding_x
+            x = i * marble_width + MARGIN_X
             marble_height = h if (i + 1) % 10 == 0 else int(h / TEN_MINUTE_MARK_HEIGHT_SCALE)
             y = h - marble_height if self.position == "bottom" else 0
-            rect = QRectF(x + gap, y + gap, marble_width - 2 * gap, marble_height - 2 * gap)
+            rect = QRectF(x + PADDING, y + PADDING, marble_width - 2 * PADDING, marble_height - 2 * PADDING)
             base = (
-                hint_rgb if i < self.model.hint_time else
-                presentation_rgb if i < self.model.presentation_end else
-                total_rgb
+                HINT_RGB
+                if i < self.model.hint_time
+                else PRESENTATION_RGB if i < self.model.presentation_end else TOTAL_RGB
             )
             light_fill_color = QColor(*interpolate_rgb(base, (255, 255, 255), 0.70), 150)
             dark_fill_color = QColor(*base, 220)
             dark_pen_color = QColor(*base)
             light_pen_color = QColor(*interpolate_rgb(base, (255, 255, 255), 0.70))
             is_last_min = (i + 1) in [self.model.hint_time, self.model.presentation_end, self.model.total_minutes]
-            b = border * 1.5 if self.model.is_paused and is_last_min else border
+            b = BORDER_THICKNESS * 1.5 if self.model.is_paused and is_last_min else BORDER_THICKNESS
 
             s_sec, e_sec = i * 60, (i + 1) * 60
             if el >= e_sec:
@@ -330,24 +163,24 @@ class TimerBar(QtWidgets.QWidget):
                 painter.restore()
 
         marble_height = int(h / TEN_MINUTE_MARK_HEIGHT_SCALE)
-        y = (h - marble_height if self.position == "bottom" else 0)
+        y = h - marble_height if self.position == "bottom" else 0
 
         if el > 0:
             scale = 0.8 if self.model.is_paused else 1.7
-            hand_size = max(4.0, (marble_height - 2 * gap) * scale)
-            hx = w * (el / (self.model.total_minutes * 60)) - hand_size / 2 + padding_x
+            hand_size = max(4.0, (marble_height - 2 * PADDING) * scale)
+            hx = w * (el / (self.model.total_minutes * 60)) - hand_size / 2 + MARGIN_X
             if self.model.is_paused or (int(time.time()) % 3) != 0:
                 painter.setBrush(marker_color)
-                painter.setPen(QPen(marker_boundary_color, marker_border))
+                painter.setPen(QPen(marker_boundary_color, MARKER_BORDER_THICKNESS))
             else:
-                painter.setBrush(QColor(*marker_dark_rgba))
+                painter.setBrush(QColor(*MARKER_DARK_RGBA))
                 painter.setPen(Qt.NoPen)
             painter.drawEllipse(QRectF(hx, y + (marble_height - hand_size) / 2, hand_size, hand_size))
 
         if self.model.is_paused:
-            s = marble_height - 2 * gap
-            px = padding_x + gap + marker_border
-            py = y + gap
+            s = marble_height - 2 * PADDING
+            px = MARGIN_X + PADDING + MARKER_BORDER_THICKNESS
+            py = y + PADDING
             tri = QtGui.QPolygonF(
                 [
                     QPointF(px + s * 0.3, py + s * 0.15),
@@ -356,7 +189,7 @@ class TimerBar(QtWidgets.QWidget):
                 ]
             )
             painter.setBrush(marker_color)
-            painter.setPen(QPen(marker_boundary_color, marker_border))
+            painter.setPen(QPen(marker_boundary_color, MARKER_BORDER_THICKNESS))
             painter.drawPolygon(tri)
 
             font = painter.font()
@@ -364,16 +197,28 @@ class TimerBar(QtWidgets.QWidget):
             font.setBold(True)
             painter.setFont(font)
             for mark, shadow_rgb in zip(
-                    [self.model.hint_time, self.model.presentation_end, self.model.total_minutes],
-                    [hint_rgb, presentation_rgb, total_rgb],
-                ):
+                [self.model.hint_time, self.model.presentation_end, self.model.total_minutes],
+                [HINT_RGB, PRESENTATION_RGB, TOTAL_RGB],
+            ):
                 painter.setPen(QColor(*shadow_rgb, 80))
-                box = QRectF(padding_x - marker_border, y + gap, mark * marble_width - (gap + marker_border) - padding_x, s)
+                box = QRectF(
+                    MARGIN_X - MARKER_BORDER_THICKNESS,
+                    y + PADDING,
+                    mark * marble_width - (PADDING + MARKER_BORDER_THICKNESS) - MARGIN_X,
+                    s,
+                )
                 painter.drawText(box, Qt.AlignRight | Qt.AlignVCenter, str(mark))
-                box = QRectF(padding_x + marker_border, y + gap, mark * marble_width - (gap + marker_border) - padding_x, s)
+                box = QRectF(
+                    MARGIN_X + MARKER_BORDER_THICKNESS,
+                    y + PADDING,
+                    mark * marble_width - (PADDING + MARKER_BORDER_THICKNESS) - MARGIN_X,
+                    s,
+                )
                 painter.drawText(box, Qt.AlignRight | Qt.AlignVCenter, str(mark))
                 painter.setPen(marker_color)
-                box = QRectF(padding_x, y + gap, mark * marble_width - (gap + marker_border) - padding_x, s)
+                box = QRectF(
+                    MARGIN_X, y + PADDING, mark * marble_width - (PADDING + MARKER_BORDER_THICKNESS) - MARGIN_X, s
+                )
                 painter.drawText(box, Qt.AlignRight | Qt.AlignVCenter, str(mark))
 
 
@@ -515,7 +360,9 @@ class PresentationTimerApp:
         cursor_pos = QtGui.QCursor.pos()
 
         parent_window = self.windows[0] if self.windows else None
-        dialog = TimeSettingsDialog(parent_window, self.model.hint_time, self.model.presentation_end, self.model.total_minutes)
+        dialog = TimeSettingsDialog(
+            parent_window, self.model.hint_time, self.model.presentation_end, self.model.total_minutes
+        )
 
         # Get the estimated size of the dialog
         # Calling adjustSize() or layout().activate() might give a more accurate size hint
@@ -542,64 +389,3 @@ class PresentationTimerApp:
 
     def run(self):
         sys.exit(self.app.exec_())
-
-
-def main():
-    parser = argparse.ArgumentParser(description="Three-bell Timer")
-    parser.add_argument("times", type=int, nargs="*", help="bell times: 1 ⇒ all three; 2 ⇒ first/last two; 3 ⇒ each")
-    parser.add_argument(
-        "--display",
-        "-d",
-        type=str,
-        default="all",
-        help="which displays to use: 'all', or comma-separated indices (e.g. '0,1')",
-    )
-    parser.add_argument("--pos", "-p", choices=["top", "bottom"], default="top", help="window position on screen (default: 'top')")
-    parser.add_argument("--pixel-height", "-s", type=int, default=12, help="height of the running timer bar (default: 12)")
-    parser.add_argument("--prompt-times", action="store_true", help="open modal dialog to specify bell times at start")
-    parser.add_argument("--generate-desktop", action="store_true", help="output a .desktop file and exit")
-    args = parser.parse_args()
-
-    if args.generate_desktop:
-        generate_desktop_file()
-        sys.exit(0)
-
-    app = QtWidgets.QApplication(sys.argv)
-    icon_path = find_icon_file("icon.ico")
-    if icon_path:
-        app.setWindowIcon(QIcon(icon_path))
-
-    if args.prompt_times:
-        # Open dialog to specify bell times
-        dialog = TimeSettingsDialog(
-            None, getattr(args, "time1", 10), getattr(args, "time2", 15), getattr(args, "time3", 20)
-        )
-        if dialog.exec_() != QtWidgets.QDialog.Accepted:
-            sys.exit(0)
-
-        args.time1 = dialog.spin1.value()
-        args.time2 = dialog.spin2.value()
-        args.time3 = dialog.spin3.value()
-
-        app = None
-    else:
-        if len(args.times) == 1:
-            args.time1 = args.time2 = args.time3 = args.times[0]
-        elif len(args.times) == 2:
-            args.time1, args.time2 = args.times
-            args.time3 = args.time2
-        elif len(args.times) >= 3:
-            args.time1, args.time2, args.time3 = args.times[:3]
-        else:
-            args.time1, args.time2, args.time3 = 10, 15, 20
-
-    # Launch application
-    QtWidgets.QApplication.setAttribute(QtCore.Qt.AA_EnableHighDpiScaling, True)  # enable highdpi scaling
-    QtWidgets.QApplication.setAttribute(QtCore.Qt.AA_UseHighDpiPixmaps, True)  # use highdpi icons
-
-    app = PresentationTimerApp(args)
-    app.run()
-
-
-if __name__ == "__main__":
-    main()

@@ -2,4 +2,4 @@
 #
 # SPDX-License-Identifier: MIT
 
-from .three_bell_timer import main
+from .main import main
