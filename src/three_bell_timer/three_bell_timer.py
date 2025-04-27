@@ -277,14 +277,14 @@ class PresentationTimerWindow(QtWidgets.QMainWindow):
             return
         if e.button() in (Qt.LeftButton, Qt.RightButton):
             menu = QtWidgets.QMenu(self)
-            cyc = menu.addAction("Cycle Display Target")
-            cyc.triggered.connect(self.manager.cycle_display_target)
-            menu.addSeparator()
             resume = menu.addAction("Resume / Pause")
             change = menu.addAction("Change Bell Times")
             menu.addSeparator()
             move_top = menu.addAction("Move to Top")
             move_bottom = menu.addAction("Move to Bottom")
+            menu.addSeparator()
+            cyc = menu.addAction("Cycle Display Target")
+            cyc.triggered.connect(self.manager.cycle_display_target)
             menu.addSeparator()
             exit_a = menu.addAction("Exit")
             action = menu.exec_(e.globalPos())
@@ -303,6 +303,19 @@ class PresentationTimerWindow(QtWidgets.QMainWindow):
 
 
 # ---- Manager / Application ----
+# ref: https://stackoverflow.com/questions/64379034/how-to-show-context-menu-in-qsystemtrayicon-on-left-click
+class TrayIcon(QtWidgets.QSystemTrayIcon):
+    """QSystemTrayIcon that shows context menu on left click."""
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.activated.connect(self.showMenuOnTrigger)
+
+    def showMenuOnTrigger(self, reason):
+        if reason == QtWidgets.QSystemTrayIcon.Trigger:
+            self.contextMenu().popup(QtGui.QCursor.pos())
+
+
 class PresentationTimerApp:
     def __init__(self, args):
         # Load QApplication
@@ -353,7 +366,7 @@ class PresentationTimerApp:
                 win.hide()
 
     def _setup_tray(self):
-        self.tray = QtWidgets.QSystemTrayIcon(self.app)
+        self.tray = TrayIcon(self.app)
         app_icon = find_icon_file("icon.ico")
         if app_icon:
             qicon = QtGui.QIcon(app_icon)
@@ -363,13 +376,13 @@ class PresentationTimerApp:
         self.tray.setIcon(qicon)
 
         menu = QtWidgets.QMenu()
-        cyc = menu.addAction("Cycle Display Target")
-        cyc.triggered.connect(self.cycle_display_target)
-        menu.addSeparator()
         resume = menu.addAction("Resume / Pause")
         resume.triggered.connect(self.model.toggle_pause)
         change = menu.addAction("Change Bell Times")
         change.triggered.connect(self.update_time_settings)
+        menu.addSeparator()
+        cyc = menu.addAction("Cycle Display Target")
+        cyc.triggered.connect(self.cycle_display_target)
         menu.addSeparator()
         exit_a = menu.addAction("Exit")
         exit_a.triggered.connect(QtWidgets.QApplication.quit)
