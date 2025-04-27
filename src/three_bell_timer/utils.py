@@ -42,6 +42,20 @@ def interpolate_rgb(
     return (r, g, b)
 
 
+def interpolate_rgba(
+    color1: Tuple[int, int, int, int], color2: Optional[Tuple[int, int, int, int]] = None, ratio: float = 1.0
+) -> Tuple[int, int, int, int]:
+    if color2 is None:
+        color2 = (0, 0, 0, 0)
+    r1, g1, b1, a1 = color1
+    r2, g2, b2, a2 = color2
+    r = clip255((1.0 - ratio) * r2 + ratio * r1)
+    g = clip255((1.0 - ratio) * g2 + ratio * g1)
+    b = clip255((1.0 - ratio) * b2 + ratio * b1)
+    a = clip255((1.0 - ratio) * a2 + ratio * a1)
+    return (r, g, b, a)
+
+
 def generate_desktop_file():
     if platform.system() != "Linux":
         sys.exit("Error: .desktop file is valid only on Linux system.")

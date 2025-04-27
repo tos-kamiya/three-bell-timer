@@ -1,3 +1,4 @@
+import math
 import sys
 import time
 from typing import List, Optional
@@ -10,7 +11,7 @@ try:
     from .__about__ import __version__
 except ImportError as e:
     __version__ = "(unknown)"
-from .utils import interpolate_rgb, find_icon_file, calculate_window_position, paint_text_with_background
+from .utils import interpolate_rgb, interpolate_rgba, find_icon_file, calculate_window_position, paint_text_with_background
 
 TEN_MINUTE_MARK_HEIGHT_SCALE = 1.25
 MARGIN_X = 4
@@ -169,11 +170,13 @@ class TimerBar(QtWidgets.QWidget):
             scale = 0.8 if self.model.is_paused else 1.7
             hand_size = max(4.0, (marble_height - 2 * PADDING) * scale)
             hx = w * (el / (self.model.total_minutes * 60)) - hand_size / 2 + MARGIN_X
-            if self.model.is_paused or (int(time.time()) % 3) != 0:
+            if self.model.is_paused:
                 painter.setBrush(marker_color)
                 painter.setPen(QPen(marker_boundary_color, MARKER_BORDER_THICKNESS))
             else:
-                painter.setBrush(QColor(*MARKER_DARK_RGBA))
+                p = 1.0 - ((math.cos(el * 2 * math.pi / 3.0) + 1.0) / 2) ** 2
+                c = interpolate_rgba(MARKER_RGBA, MARKER_DARK_RGBA, p)
+                painter.setBrush(QColor(*c))
                 painter.setPen(Qt.NoPen)
             painter.drawEllipse(QRectF(hx, y + (marble_height - hand_size) / 2, hand_size, hand_size))
 
