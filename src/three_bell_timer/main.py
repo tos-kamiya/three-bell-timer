@@ -32,6 +32,10 @@ def main():
         generate_desktop_file()
         sys.exit(0)
 
+    # Qt setting
+    QtWidgets.QApplication.setAttribute(QtCore.Qt.AA_EnableHighDpiScaling, True)  # enable highdpi scaling
+    QtWidgets.QApplication.setAttribute(QtCore.Qt.AA_UseHighDpiPixmaps, True)  # use highdpi icons
+
     app = QtWidgets.QApplication(sys.argv)
     icon_path = find_icon_file("icon.ico")
     if icon_path:
@@ -62,9 +66,6 @@ def main():
             args.time1, args.time2, args.time3 = 10, 15, 20
 
     # Launch application
-    QtWidgets.QApplication.setAttribute(QtCore.Qt.AA_EnableHighDpiScaling, True)  # enable highdpi scaling
-    QtWidgets.QApplication.setAttribute(QtCore.Qt.AA_UseHighDpiPixmaps, True)  # use highdpi icons
-
     app = PresentationTimerApp(args)
     app.run()
 
