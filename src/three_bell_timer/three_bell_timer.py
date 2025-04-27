@@ -17,10 +17,10 @@ TEN_MINUTE_MARK_HEIGHT_SCALE = 1.25
 MARGIN_X = 4
 PADDING = 2
 BORDER_THICKNESS = 1.1
-MARKER_BORDER_THICKNESS = 1.8
+MARKER_BORDER_THICKNESS = 2.1
 MARKER_RGBA = (240, 240, 240, 240)
 MARKER_DARK_RGBA = (0, 0, 0, 80)
-MARKER_BOUNDARY_RGBA = (69, 71, 76, 240)
+MARKER_BORDER_RGBA = (69, 71, 76, 240)
 HINT_RGB = (13, 14, 15)
 PRESENTATION_RGB = (0, 117, 153)
 TOTAL_RGB = (229, 153, 82)
@@ -119,9 +119,11 @@ class TimerBar(QtWidgets.QWidget):
         marble_width = w / self.model.total_minutes
         rr_size = max(0.0, (h - 2 * PADDING) / 5)
         marker_color = QColor(*MARKER_RGBA)
-        marker_boundary_color = QColor(*MARKER_BOUNDARY_RGBA)
+        marker_border_color = QColor(*MARKER_BORDER_RGBA)
         el = self.model.elapsed()
         el = min(el, self.model.total_minutes * 60.0)
+
+        # Draw marbles
         for i in range(self.model.total_minutes):
             x = i * marble_width + MARGIN_X
             marble_height = h if (i + 1) % 10 == 0 else int(h / TEN_MINUTE_MARK_HEIGHT_SCALE)
@@ -166,21 +168,8 @@ class TimerBar(QtWidgets.QWidget):
         marble_height = int(h / TEN_MINUTE_MARK_HEIGHT_SCALE)
         y = h - marble_height if self.position == "bottom" else 0
 
-        if el > 0:
-            scale = 0.8 if self.model.is_paused else 1.7
-            hand_size = max(4.0, (marble_height - 2 * PADDING) * scale)
-            hx = w * (el / (self.model.total_minutes * 60)) - hand_size / 2 + MARGIN_X
-            if self.model.is_paused:
-                painter.setBrush(marker_color)
-                painter.setPen(QPen(marker_boundary_color, MARKER_BORDER_THICKNESS))
-            else:
-                p = 1.0 - ((math.cos(el * 2 * math.pi / 3.0) + 1.0) / 2) ** 2
-                c = interpolate_rgba(MARKER_RGBA, MARKER_DARK_RGBA, p)
-                painter.setBrush(QColor(*c))
-                painter.setPen(Qt.NoPen)
-            painter.drawEllipse(QRectF(hx, y + (marble_height - hand_size) / 2, hand_size, hand_size))
-
         if self.model.is_paused:
+            # Draw play button
             s = marble_height - 2 * PADDING
             px = MARGIN_X + PADDING + MARKER_BORDER_THICKNESS
             py = y + PADDING
@@ -192,9 +181,10 @@ class TimerBar(QtWidgets.QWidget):
                 ]
             )
             painter.setBrush(marker_color)
-            painter.setPen(QPen(marker_boundary_color, MARKER_BORDER_THICKNESS))
+            painter.setPen(QPen(marker_border_color, MARKER_BORDER_THICKNESS))
             painter.drawPolygon(tri)
 
+            # Draw hint/presentation/total times
             font = painter.font()
             font.setPointSizeF(s * 0.7)
             font.setBold(True)
@@ -215,6 +205,41 @@ class TimerBar(QtWidgets.QWidget):
                     corner_radius=rr_size,
                     margin=rr_size,
                 )
+
+        # Draw progress circle
+        if el > 0:
+            scale = 0.8 if self.model.is_paused else 1.7
+            hand_size = max(4.0, (marble_height - 2 * PADDING) * scale)
+            hx = w * (el / (self.model.total_minutes * 60)) - hand_size / 2 + MARGIN_X
+            if self.model.is_paused:
+                painter.setBrush(marker_color)
+                painter.setPen(QPen(marker_border_color, MARKER_BORDER_THICKNESS))
+            else:
+                p = 1.0 - ((math.cos(el * 2 * math.pi / 3.0) + 1.0) / 2) ** 2
+                c = interpolate_rgba(MARKER_RGBA, MARKER_DARK_RGBA, p)
+                painter.setBrush(QColor(*c))
+                painter.setPen(Qt.NoPen)
+            painter.drawEllipse(QRectF(hx, y + (marble_height - hand_size) / 2, hand_size, hand_size))
+
+        # Draw progress time
+        if el > 0 and self.model.is_paused:
+            marble_height = int(h / TEN_MINUTE_MARK_HEIGHT_SCALE)
+            y = h - marble_height if self.position == "bottom" else 0
+            s = marble_height - 2 * PADDING - MARKER_BORDER_THICKNESS * 2
+            font = painter.font()
+            font.setPointSizeF(s * 0.7)
+            font.setBold(True)
+            painter.setFont(font)
+            box = QRectF(hx + hand_size + rr_size, y + PADDING, w, s)
+            els = int(el)
+            text = "%02d:%02d" % (els // 60, els % 60)
+            paint_text_with_background(
+                painter, box, text, MARKER_RGBA, MARKER_BORDER_RGBA,
+                text_align="left",
+                font_size = int(box.height() * 0.6),
+                corner_radius=rr_size,
+                margin=rr_size,
+            )
 
 
 # ---- Presentation Window ----
