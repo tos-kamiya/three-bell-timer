@@ -11,7 +11,7 @@ requires-python = ">=3.10"
 license = "MIT"
 keywords = []
 authors = [
-  { name = "Toshihiro Kamiya", email = "kamiya@mbj.nifty.com" },
+  { name = "Toshihiro Kamiya", email = "kamiya@mbj.nifty.com" }
 ]
 classifiers = [
   "Development Status :: 4 - Beta",
@@ -19,10 +19,10 @@ classifiers = [
   "Programming Language :: Python :: 3.10",
   "Programming Language :: Python :: 3.11",
   "Programming Language :: Python :: 3.12",
-  "Programming Language :: Python :: Implementation :: CPython",
+  "Programming Language :: Python :: Implementation :: CPython"
 ]
 dependencies = [
-  "PyQt5",
+  "PyQt5"
 ]
 
 [tool.hatch.version]
@@ -31,9 +31,9 @@ path = "src/three_bell_timer/__about__.py"
 [tool.hatch.build.targets.sdist]
 include = [
   "data/*.png",
-  "data/*.ico",
+  "data/*.ico"
 ]
 
-[project.scripts]
+[project.gui-scripts]
 3bt = "three_bell_timer:main"
 
